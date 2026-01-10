@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "Conversate",
+			"path": ".."
+		},
+		{
+			"name": "data",
+			"path": "../../ai-career-coach2/data"
+		}
+	],
+	"settings": {}
+}
