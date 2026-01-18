@@ -65,7 +65,7 @@ export function AssignmentsList({ assignments }) {
           <p className="text-sm text-gray-600 line-clamp-2 mb-4">{assignment.scenario}</p>
           <div className="space-y-1 text-xs text-gray-600">
             <div className="flex items-center gap-2">
-              <Clock className="h-3 w-3" />
+              <Clock className="h-3 w-3 text-green-600" />
               <span>Opens: {startDate}</span>
             </div>
             <div className="flex items-center gap-2">

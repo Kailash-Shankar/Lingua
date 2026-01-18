@@ -22,7 +22,8 @@ import {
   Trash,
   Trash2Icon,
   TrashIcon,
-  ArrowBigRightIcon
+  ArrowBigRightIcon,
+  Star
 } from "lucide-react";
 import {
   AlertDialog,
@@ -241,7 +242,7 @@ export default function StudentAssignmentView() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
-                  <Target className="h-4 w-4" />
+                  <Star className="h-4 w-4" />
                   <span className="text-xs font-bold uppercase tracking-wider">Difficulty Level</span>
                 </div>
                 <p className={`text-xl ${assignment.difficulty === "Standard" ? "text-black" : "text-red-500"} font-bold`}>{assignment.difficulty}</p>

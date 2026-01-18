@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import ChatMessage from "@/components/ChatMessage"; 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Send, Loader2, User, CheckCircle } from "lucide-react";
+import { ArrowLeft, Send, Loader2, User, CheckCircle, Link } from "lucide-react";
 import { Progress } from "@/components/ui/progress"; 
 import React from "react";
 import confetti from "canvas-confetti"; // 🔥 Added for success effect
@@ -313,6 +313,57 @@ export default function AssignmentChatPage() {
   }
 };
 
+const handleFinishAssignment = async () => {
+  setLoading(true); // Show a "Generating your report..." overlay
+
+  try {
+    // 1. Call the API
+    const response = await fetch("/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "GENERATE_FEEDBACK_SUMMARY",
+        history: chatHistory, 
+        context: {
+              topic: data.assignment.topic,
+              language: data.courses.language,
+              level: data.courses.level,
+              difficulty: data.assignment.difficulty,
+            }
+      }),
+    });
+    const result = await response.json();
+
+    // 2. Save to Submissions
+    await supabase
+      .from("submissions")
+      .update({
+        pos_feedback: result.strengths,
+        neg_feedback: result.improvements,
+        status: 'completed',
+        submitted_at: new Date(startAt).toISOString(),
+      })
+      .eq("id", submission.Id);
+
+    // 3. Save to Enrollment Memory
+    const memoryColumn = `memory_${characterId.charAt(0)}`;
+    await supabase
+      .from("course_enrollments")
+      .update({ [memoryColumn]: result.personality_traits })
+      .eq("student_id", studentId)
+      .eq("course_id", courseId);
+
+    // 4. Redirect to Results
+    router.push(`/student/${studentId}/courses/${courseId}/assignments/${assignmentId}/results`);
+
+  } catch (err) {
+    console.error("Failed to finalize assignment:", err);
+  }
+};
+
+
+
+
   if (initializing) return (
     <div className="h-screen flex items-center justify-center bg-gray-50">
       <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
@@ -382,12 +433,14 @@ export default function AssignmentChatPage() {
       <div className="max-w-4xl mx-auto relative">
         {progressValue >= 100 ? (
           <div className="animate-in zoom-in duration-500">
+           
             <Button 
-              onClick={() => router.push(`/student/${studentId}/courses/${courseId}`)} 
+              onClick={() => router.push(`/student/${studentId}/courses/${courseId}/assignments/${assignmentId}/results`)} 
               className="w-full py-8 rounded-2xl bg-green-600 hover:bg-green-700 text-white text-xl font-bold flex gap-3 shadow-xl"
-            >
+              >
               <CheckCircle className="h-7 w-7" /> Finish Assignment
             </Button>
+              
           </div>
         ) : (
           <>
