@@ -5,7 +5,6 @@ import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { LogOut, LayoutDashboard } from "lucide-react";
-
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -14,41 +13,20 @@ const Header = () => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
- // Inside your Header.jsx useEffect
-useEffect(() => {
-  const syncUser = async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    setUser(currentUser ?? null);
+ useEffect(() => {
+  // Get initial session
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null);
     setLoading(false);
-  };
-
-  syncUser();
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    const newUser = session?.user ?? null;
-
-    // ✅ 1. Check if the user ID actually changed
-    setUser((prevUser) => {
-      // Use a temporary variable to handle the logic outside the return
-      const isDifferent = prevUser?.id !== newUser?.id;
-      
-      // We handle the refresh in a separate block below, 
-      // not inside this return statement.
-      return newUser;
-    });
-
-    // ✅ 2. Trigger the refresh outside of the setUser updater
-    // We only refresh on major auth transitions
-    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-      // Small delay ensures state is settled before refreshing the router
-      setTimeout(() => {
-        router.refresh();
-      }, 0);
-    }
   });
 
-  return () => subscription.unsubscribe();
-}, [router]);
+  // Listen for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+  });
+
+  return () => subscription?.unsubscribe();
+}, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -66,6 +44,7 @@ useEffect(() => {
             width={300}
             height={50}
             className="h-12 py-1 w-auto object-contain"
+            loading="eager"
           />
         </Link>
 
@@ -78,7 +57,14 @@ useEffect(() => {
             <>
               {user ? (
                 <>
-                  <Link href={user.user_metadata?.user_role === 'teacher' ? "/teacher/dashboard" : "/student/dashboard"}>
+                
+                  <Link 
+                    href={
+                      user.user_metadata?.user_role === 'teacher' 
+                        ? "/teacher/dashboard" 
+                        : `/student/${user.id}/dashboard`
+                    }
+                  >
                     <Button variant="secondary" className="flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" />
                       <span className="hidden md:inline">Dashboard</span>

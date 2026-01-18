@@ -7,8 +7,8 @@ export default function ChatMessage({ text, isUser }) {
       <div
         className={`inline-block max-w-[80%] p-3 rounded-xl ${
           isUser
-            ? "bg-orange-500 text-white"
-            : "bg-gray-200 text-black"
+            ? "bg-orange-300 text-black"
+            : "bg-white text-black"
         }`}
       >
         <ReactMarkdown

@@ -16,7 +16,8 @@ import {
   Cog, 
   Copy, 
   Check, 
-  ArrowLeft 
+  ArrowLeft, 
+  ChartColumnIncreasing
 } from "lucide-react";
 
 export default function CourseDetailPage() {
@@ -105,23 +106,13 @@ const fetchCourseData = async () => {
       <div className="flex justify-between items-end mb-8 border-b pb-6">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">{course.title}</h1>
+          {/*  Optional: <h3 className="text-gray-500 mt-2 text-lg italic tracking-tight">{course.description}</h3> */} 
           <p className="text-gray-500 mt-2 text-lg">
             {course.language} • {course.level}
           </p>
         </div>
 
-        <div className="text-right flex flex-col items-end">
-          <p className="text-md font-bold uppercase tracking-widest text-gray-800 mb-1">
-            Student Join Code
-          </p>
-          <div onClick={handleCopy} className="flex justify-center items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity group">
-            <p className="text-4xl font-mono font-bold text-blue-600 tracking-tighter">
-              {course.course_code || "------"}
-            </p>
-            {course.course_code && (copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5 text-gray-400 group-hover:text-blue-600" />)}
-          </div>
-          {copied && <p className="text-[10px] text-green-500 font-bold uppercase mt-1 text-right">Copied!</p>}
-        </div>
+        
       </div>
 
       <Tabs defaultValue="assignments" className="space-y-6">
@@ -129,11 +120,8 @@ const fetchCourseData = async () => {
           <TabsTrigger value="assignments" className="flex gap-2">
             <MessageSquare className="h-4 w-4" /> Assignments ({assignmentCount})
           </TabsTrigger>
-          <TabsTrigger value="students" className="flex gap-2">
-            <Users className="h-4 w-4" /> Students ({studentCount})
-          </TabsTrigger>
-          <TabsTrigger value="stats" className="flex gap-2">
-            <BarChart className="h-4 w-4" /> Analytics
+          <TabsTrigger value="progress" className="flex gap-2">
+            <ChartColumnIncreasing className="h-4 w-4" /> My Progress
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex gap-2">
             <Cog className="h-4 w-4" /> Course Settings
@@ -144,43 +132,47 @@ const fetchCourseData = async () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Course Assignments</h3>
-            {assignmentCount > 0 && (
-                <CreateAssignmentModal courseId={courseId} level={course.level} onAssignmentCreated={fetchCourseData} />
-            )}
+           
             </div>
 
             {assignmentCount === 0 ? (
             <Card className="border-dashed bg-gray-50/50 flex flex-col items-center py-12">
-                <p className="text-sm text-gray-500 italic mb-4">No chat assignments created yet.</p>
-                <CreateAssignmentModal courseId={courseId} level={course.level} onAssignmentCreated={fetchCourseData} />
+                <p className="text-sm text-gray-500 italic mb-4">No assignments available yet.</p>
+                <CreateAssignmentModal courseId={courseId} onAssignmentCreated={fetchCourseData} />
             </Card>
             ) : (
             <AssignmentsList assignments={assignments} />
             )}
         </div>
         </TabsContent>
-
-        <TabsContent value="students">
-          {studentCount === 0 ? (
-            <Card className="border-dashed bg-gray-50/50">
-              <CardHeader className="text-center">
-                <CardTitle className="text-gray-400">No Students Yet</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center py-6 text-center">
-                <p className="text-sm text-gray-500 italic mb-2">No students enrolled in this course yet.</p>
-                <p className="text-sm text-gray-500 mb-6">Students can join using this course code:</p>
-                <div className="bg-white border-2 border-black p-4 rounded-lg">
-                   <p className="text-4xl font-mono font-bold tracking-widest">{course.course_code || "------"}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              <p>List of enrolled students will go here...</p>
+     <TabsContent value="progress">
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">My Progress</h3>
+           
             </div>
-          )}
+
+            {assignmentCount === 0 ? (
+            <Card className="border-dashed bg-gray-50/50 flex flex-col items-center py-12">
+                <ChartColumnIncreasing />
+                <p className="text-sm text-gray-500 italic mb-4">Your course progress will be displayed here.</p>
+                
+            </Card>
+            ) : (
+            
+            <Card className="border-dashed bg-gray-50/50 flex flex-col items-center py-12">
+                <ChartColumnIncreasing />
+                <p className="text-sm text-gray-500 italic mb-4">Your course progress will be displayed here.</p>
+                
+            </Card>
+            )}
+        </div>
         </TabsContent>
+
+       
       </Tabs>
     </div>
   );
 }
+
+

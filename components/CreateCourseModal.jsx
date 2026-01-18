@@ -91,7 +91,7 @@ export function CreateCourseModal({ onCourseCreated }) {
       if (!val) setError(""); // ✅ Clear error when closing modal
     }}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 bg-black hover:bg-gray-700 text-white font-semibold">
+        <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-400 text-white font-semibold">
           <PlusCircle className="h-4 w-4" />
           Create New Course
         </Button>

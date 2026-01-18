@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Loader2, AlertCircle, Zap, Shield, ChevronDown, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
-export function CreateAssignmentModal({ courseId, onAssignmentCreated }) {
+export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -206,7 +206,41 @@ export function CreateAssignmentModal({ courseId, onAssignmentCreated }) {
                   <ChevronDown className="h-4 w-4 opacity-50" /> 
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+              
+              {level === "Beginner (Year 1)" ? (
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuItem onClick={() => setMinExchanges(5)}>
+                    5 Exchanges (Quick Practice)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(10)}>
+                    10 Exchanges (Standard)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(15)}>
+                    15 Exchanges (In-Depth)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(20)}>
+                    20 Exchanges (Extended)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+
+
+                ) : (level === "Intermediate (Year 2)" ? (
+                  <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuItem onClick={() => setMinExchanges(6)}>
+                    6 Exchanges (Quick Practice)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(12)}>
+                    12 Exchanges (Standard)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(18)}>
+                    18 Exchanges (In-Depth)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(24)}>
+                    24 Exchanges (Extended)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+                ) : (
+                  <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
                 <DropdownMenuItem onClick={() => setMinExchanges(8)}>
                     8 Exchanges (Quick Practice)
                 </DropdownMenuItem>
@@ -220,6 +254,7 @@ export function CreateAssignmentModal({ courseId, onAssignmentCreated }) {
                     32 Exchanges (Extended)
                 </DropdownMenuItem>
               </DropdownMenuContent>
+              ))}
             </DropdownMenu>
           </div>
 

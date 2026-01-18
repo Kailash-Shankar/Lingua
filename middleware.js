@@ -51,7 +51,7 @@ export async function middleware(request) {
   // 4. Redirect logged-in users away from Login/Signup pages
   if (user && (url.pathname === '/login' || url.pathname === '/signup')) {
     const role = user.user_metadata?.user_role
-    return NextResponse.redirect(new URL(role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard', request.url))
+    return NextResponse.redirect(new URL(role === 'teacher' ? '/teacher/dashboard' : `/student/${user.id}/dashboard`, request.url))
   }
 
   return response

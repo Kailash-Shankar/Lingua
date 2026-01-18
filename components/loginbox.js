@@ -3,10 +3,10 @@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { Key, Mail, GraduationCap, BookOpen } from "lucide-react";
+import { Key, Mail, GraduationCap, BookOpen, User, Fingerprint, Code, Lock, Hash } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { signup, login } from "@/actions/auth"; // Ensure this path is correct!
+import { signup, login } from "@/actions/auth"; 
 import { SubmitButton } from "./submitButton"; 
 
 export function Loginbox({ isSignup = true }) {
@@ -16,7 +16,6 @@ export function Loginbox({ isSignup = true }) {
   const message = searchParams.get("message");
 
   return (
-    /* ✅ Remove any 'action' from the form tag itself since we use formAction on the button */
     <form className="flex flex-col gap-4 w-full max-w-md p-8 border rounded-lg shadow-sm bg-white">
       <h1 className="text-4xl font-heading font-bold text-center text-blue-500">
         Lingua {isSignup ? "Sign Up" : "Login"}
@@ -48,14 +47,40 @@ export function Loginbox({ isSignup = true }) {
       )}
 
       <div className="space-y-4">
+        {/* Email and Password are always required */}
         <InputGroup>
           <InputGroupInput className="text-black" name="email" type="email" placeholder="Email address" required />
           <InputGroupAddon><Mail className="h-4 w-4 text-gray-500" /></InputGroupAddon>
         </InputGroup>
+        
         <InputGroup>
           <InputGroupInput className="text-black" name="password" type="password" placeholder="Password" required />
-          <InputGroupAddon><Key className="h-4 w-4 text-gray-500" /></InputGroupAddon>
+          <InputGroupAddon><Lock className="h-4 w-4 text-gray-500" /></InputGroupAddon>
         </InputGroup>
+
+        {/* Signup Specific Fields */}
+        {isSignup && (
+          <>
+            {/* Split row for Names */}
+            <div className="flex gap-4">
+              <InputGroup>
+                <InputGroupInput className="text-black" name="firstname" type="text" placeholder="First Name" required />
+                <InputGroupAddon><User className="h-4 w-4 text-gray-500" /></InputGroupAddon>
+              </InputGroup>
+              <InputGroup>
+                <InputGroupInput className="text-black" name="lastname" type="text" placeholder="Last Name" required />
+              </InputGroup>
+            </div>
+
+            {/* Student ID only if role is student */}
+            {role === "student" && (
+              <InputGroup>
+                <InputGroupInput className="text-black" name="student_id_number" type="text" placeholder="Student ID Number" required />
+                <InputGroupAddon><Hash className="h-4 w-4 text-gray-500" /></InputGroupAddon>
+              </InputGroup>
+            )}
+          </>
+        )}
       </div>
 
       <div className="mt-4">
@@ -63,7 +88,7 @@ export function Loginbox({ isSignup = true }) {
           text={isSignup ? `Create ${role.charAt(0).toUpperCase() + role.slice(1)} Account` : "Log In"}
           signup={isSignup}
           role={role}
-          action={isSignup ? signup : login} // ✅ Pass the actual function
+          action={isSignup ? signup : login}
         />
       </div>
     </form>

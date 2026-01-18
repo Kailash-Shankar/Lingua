@@ -62,7 +62,7 @@ export function AssignmentsList({ assignments }) {
         </CardHeader>
         
         <CardContent>
-          <p className="text-sm text-gray-600 line-clamp-2 italic mb-4">"{assignment.scenario}"</p>
+          <p className="text-sm text-gray-600 line-clamp-2 mb-4">{assignment.scenario}</p>
           <div className="space-y-1 text-xs text-gray-600">
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3" />
@@ -76,9 +76,9 @@ export function AssignmentsList({ assignments }) {
         </CardContent>
 
         <CardFooter className="bg-gray-50 border-t p-3">
-          <Link href={`/teacher/courses/${courseId}/assignments/${assignment.id}`} className="w-full">
+          <Link href={params.studentId ? `/student/${params.studentId}/courses/${courseId}/assignments/${assignment.id}` : `/teacher/courses/${courseId}/assignments/${assignment.id}`} className="w-full">
             <Button variant="ghost" className="w-full justify-between hover:bg-gray-100 group">
-                <span className="text-sm font-semibold">View Course</span>
+                <span className="text-sm font-semibold">View Assignment</span>
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Button>
             </Link>

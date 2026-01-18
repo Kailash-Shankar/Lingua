@@ -70,7 +70,7 @@ export default function Chat() {
         <div ref={chatEndRef} />
       </div>
 
-      {loading && <div className="text-left text-gray-500 p-2">Bot is typing...</div>}
+      {loading && <div className="text-left text-gray-500 p-2">LinguaBuddy is typing...</div>}
 
       <div className="flex gap-2 mt-2">
         <input
@@ -82,7 +82,7 @@ export default function Chat() {
         />
         <button
           onClick={sendMessage}
-          className="bg-orange-500 text-white px-4 rounded"
+          className="bg-orange-400 text-white px-4 rounded"
           disabled={loading}
         >
           Send
