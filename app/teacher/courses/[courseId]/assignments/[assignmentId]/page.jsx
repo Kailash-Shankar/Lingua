@@ -78,7 +78,7 @@ export default function AssignmentDetailPage() {
         <div className="flex items-center gap-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg border">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            <span className="font-bold">{assignment.min_exchanges}</span> Messages Required
+            <span className="font-bold">{assignment.exchanges}</span> Messages Required
           </div>
         </div>
       </div>

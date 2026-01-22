@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Loader2, AlertCircle, Hash } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { toast } from "sonner"; // Using sonner for success
 
 export function JoinCourseModal({ onCourseJoined }) {
   const [open, setOpen] = useState(false);
@@ -15,41 +16,26 @@ export function JoinCourseModal({ onCourseJoined }) {
   const [joinCode, setJoinCode] = useState("");
 
   const handleJoin = async (e) => {
-
-    console.log("Attempting to enroll:", {
-  course_id: course.id,
-  student_id: studentId
-});
-
-const { error: enrollError } = await supabase
-  .from("course_enrollments")
-  .insert([{ 
-    course_id: course.id, 
-    student_id: studentId 
-  }]);
-
-if (enrollError) {
-  console.error("Supabase Enrollment Error:", enrollError); // Check the "code" and "detail" here
-  if (enrollError.code === "23505") throw new Error("You are already enrolled!");
-  throw enrollError;
-}
-
-    e.preventDefault();
+    e.preventDefault(); // Move this to the top
     setError("");
     setLoading(true);
 
     try {
-      // 1. Find the course with this join code
+      // 1. Get the current user first
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("You must be logged in to join a course.");
+
+      // 2. Find the course with this code 
+      // NOTE: Make sure your column name is 'course_code' or 'join_code'
       const { data: course, error: fetchError } = await supabase
         .from("courses")
-        .select("id, name")
-        .eq("join_code", joinCode.toUpperCase())
+        .select("id, title")
+        .eq("course_code", joinCode.toUpperCase().trim()) // Using course_code
         .single();
 
-      if (fetchError || !course) throw new Error("Invalid join code. Please check with your teacher.");
-
-      // 2. Get the current user
-      const { data: { user } } = await supabase.auth.getUser();
+      if (fetchError || !course) {
+        throw new Error("Invalid join code. Please check with your teacher.");
+      }
 
       // 3. Enroll the student
       const { error: enrollError } = await supabase
@@ -60,14 +46,21 @@ if (enrollError) {
         }]);
 
       if (enrollError) {
-        if (enrollError.code === "23505") throw new Error("You are already enrolled in this course!");
+        // Postgres unique constraint error code
+        if (enrollError.code === "23505") {
+          throw new Error("You are already enrolled in this course!");
+        }
         throw enrollError;
       }
 
+      // 4. Success!
+      toast.success(`Joined ${course.title}!`);
       setOpen(false);
       setJoinCode("");
       if (onCourseJoined) onCourseJoined();
+      
     } catch (err) {
+      console.error("Join Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -75,7 +68,13 @@ if (enrollError) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(val) => {
+      setOpen(val);
+      if (!val) {
+        setError("");
+        setJoinCode("");
+      }
+    }}>
       <DialogTrigger asChild>
         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
           <PlusCircle className="mr-2 h-4 w-4" /> Join a Course
@@ -99,15 +98,17 @@ if (enrollError) {
                 required
               />
             </div>
-            <p className="text-xs text-gray-500">Enter the code provided by your teacher.</p>
+            <p className="text-xs text-gray-500">Enter the 6-character code provided by your teacher.</p>
           </div>
+          
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md flex items-center gap-2 text-sm">
+            <div className="bg-red-50 text-red-600 p-3 rounded-md flex items-center gap-2 text-sm border border-red-100">
               <AlertCircle className="h-4 w-4" /> {error}
             </div>
           )}
+          
           <DialogFooter>
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading || !joinCode} className="w-full bg-black text-white hover:bg-gray-800">
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Join Course"}
             </Button>
           </DialogFooter>

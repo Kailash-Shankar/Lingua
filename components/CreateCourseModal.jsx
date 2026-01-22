@@ -14,14 +14,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Loader2, ChevronDown, AlertCircle } from "lucide-react";
+import { PlusCircle, Loader2, ChevronDown, AlertCircle, CheckCircle2 } from "lucide-react"; // Added CheckCircle2
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const generateCourseCode = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -30,7 +31,7 @@ const generateCourseCode = () => {
 export function CreateCourseModal({ onCourseCreated }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(""); // ✅ Track validation errors
+  const [error, setError] = useState(""); 
   
   const [selectedLanguage, setSelectedLanguage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
@@ -39,13 +40,12 @@ export function CreateCourseModal({ onCourseCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Reset error state
+    setError(""); 
     
     const formData = new FormData(e.currentTarget);
     const title = formData.get("title");
     const description = formData.get("description");
 
-    // ✅ Validation Check: Ensure mandatory fields are filled
     if (!title || !selectedLanguage || !selectedLevel) {
       setError("Please fill in all mandatory fields.");
       return;
@@ -55,7 +55,6 @@ export function CreateCourseModal({ onCourseCreated }) {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
       const courseCode = generateCourseCode();
 
       const { error: supabaseError } = await supabase
@@ -73,6 +72,12 @@ export function CreateCourseModal({ onCourseCreated }) {
 
       if (supabaseError) throw supabaseError;
 
+      // 2. Trigger Sonner Success Toast
+      toast.success("Course created successfully!", {
+        description: `${title} is now available in your dashboard.`,
+        duration: 4000,
+      });
+
       setOpen(false);
       setSelectedLanguage("");
       setSelectedLevel("");
@@ -80,11 +85,14 @@ export function CreateCourseModal({ onCourseCreated }) {
       router.refresh();
     } catch (err) {
       setError(err.message);
+      // 3. Trigger Sonner Error Toast
+      toast.error("Failed to create course", {
+        description: err.message,
+      });
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <Dialog open={open} onOpenChange={(val) => {
       setOpen(val);

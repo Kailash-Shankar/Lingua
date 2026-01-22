@@ -54,12 +54,12 @@ export default function AssignmentResultsPage() {
         });
 
         // 2. Trigger Confetti on success
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#EAB308', '#22C55E', '#3B82F6'] // Matching your UI colors
-        });
+        // confetti({
+        //   particleCount: 150,
+        //   spread: 70,
+        //   origin: { y: 0.6 },
+        //   colors: ['#EAB308', '#22C55E', '#3B82F6'] // Matching your UI colors
+        // });
 
       } catch (err) {
         console.error("Error loading results:", err.message);
@@ -93,10 +93,10 @@ export default function AssignmentResultsPage() {
       <div className="bg-white border-b pt-12 pb-8 px-8">
         <div className="max-w-4xl mx-auto">
           <Link 
-            href={`/student/${studentId}/courses/${courseId}/assignments/${assignmentId}`}
+            href={`/student/${studentId}/courses/${courseId}?tab=progress`}
             className="flex items-center gap-2 text-gray-500 hover:text-black mb-6 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Assignment Details
+            <ArrowLeft className="h-4 w-4" /> Back to My Progress
           </Link>
           
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -104,7 +104,7 @@ export default function AssignmentResultsPage() {
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-green-100 text-green-700 border-none">Completed</Badge>
                 <span className="text-gray-400 text-sm">•</span>
-                <span className="text-gray-500 text-sm">Submitted {submission.submitted_at ? submission.submitted_at.toLocaleDateString() : ""}</span>
+                <span className="text-gray-500 text-sm">Submitted {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : ""}</span>
               </div>
               <h1 className="text-4xl font-black tracking-tight">{assignment.title}</h1>
               <p className="text-gray-500 mt-1 italic">Conversation with {submission.character_id}</p>

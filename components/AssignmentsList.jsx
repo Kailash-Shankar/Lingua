@@ -54,7 +54,7 @@ export function AssignmentsList({ assignments }) {
             </Badge>
             <div className="flex items-center gap-1 text-xs text-gray-500 font-medium">
               <MessageSquare className="h-3 w-3" />
-              {assignment.min_exchanges} msgs req.
+              {assignment.exchanges} exchanges
             </div>
           </div>
           <CardTitle className="text-xl font-bold">{assignment.title}</CardTitle>

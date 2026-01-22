@@ -1,7 +1,11 @@
+
+
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Header from "@/components/header";
+import { Toaster } from "sonner"
+
 
 // Body font
 const inter = Inter({ 
@@ -21,6 +25,7 @@ export const metadata = {
     "An AI-powered language learning platform that lets you practice conversations and receives personalized feedback to improve your skills.",
 };
 
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -39,7 +44,7 @@ export default function RootLayout({ children }) {
           {children}
         </main>
       
-       
+       <Toaster position="bottom-right" richColors/>
 
           {/* Footer */}
           <footer className="bg-muted/50 ">

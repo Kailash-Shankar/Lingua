@@ -11,6 +11,18 @@ import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/header";
 
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    console.log("Auth Event:", event);
+    if (event === "SIGNED_OUT") {
+      console.warn("Session lost! Redirecting...");
+      // router.push("/login"); // Comment this out during debugging to stop the kick
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
 
 export default function Home() {
   return (

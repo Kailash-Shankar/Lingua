@@ -3,6 +3,23 @@ import { NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Helper function for handling retries on 503 errors
+async function callGeminiWithRetry(fn, maxRetries = 7) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isOverloaded = error.status === 503 || error.message?.includes("503") || error.message?.includes("overloaded");
+      if (isOverloaded && i < maxRetries - 1) {
+        console.warn(`⚠️ Gemini overloaded. Retrying in ${1000 * (i + 1)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 export async function POST(req) {
   try {
     const { message, history, context } = await req.json();
@@ -11,20 +28,19 @@ export async function POST(req) {
       message, 
       historyLength: history?.length, 
       context 
-    }); // Debug
+    });
 
     let chatHistory = (history || []).map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.text || "" }],
     }));
 
-   
     if (chatHistory.length > 0 && chatHistory[0].role === "model") {
-      chatHistory.shift(); // Removes the first element
+      chatHistory.shift();
     }
 
     if (message === "GENERATE_FEEDBACK_SUMMARY") {
-     const prompt = `
+      const prompt = `
         You are an expert language tutor. In English, analyze this conversation history between a student and an AI:
         ${JSON.stringify(history)}
 
@@ -41,20 +57,18 @@ export async function POST(req) {
         IMPORTANT: Return ONLY a JSON object with this structure:
         {
           "strengths": ["string", "string", "string"],
-          "improvements": ["string", "string", "string"]
+          "improvements": ["string", "string", "string"],
           "personality_traits": ["string", "string", "string"]
         }
       `;
 
-       const feedbackModel = genAI.getGenerativeModel({ 
-      model: "gemini-3-flash-preview", // Use stable version
-      systemInstruction: prompt, // Using the logic from your previous route code
-    });
+      const feedbackModel = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash",
+        systemInstruction: prompt,
+      });
 
-      const result = await feedbackModel.generateContent(prompt);
+      const result = await callGeminiWithRetry(() => feedbackModel.generateContent(prompt));
       const responseText = result.response.text();
-      
-      // Clean the string in case Gemini adds markdown code blocks (```json ... ```)
       const cleanedJson = responseText.replace(/```json|```/g, "").trim();
       
       return NextResponse.json(JSON.parse(cleanedJson));
@@ -81,7 +95,7 @@ export async function POST(req) {
 
         INSTRUCTIONS:
         1. Stay in character at all times.
-        2. Make sure you are conversing at a level a ${context.language} ${context.level} level can understand${context.difficulty == "Challenging" ? `, but since this is a 'challenge' conversation, feel free to go a little bit higher level.` : "."}
+        2. Make sure you are conversing at a level a ${context.language} ${context.level} level can understand${context.difficulty == "Challenging" ? `, but since this is a 'challenge' conversation, feel free to go a little bit higher level.` : ", DO NOT converse above the level of the student"}
         3. Keep your response sizes natural, ${
           context.level == "Beginner (Year 1)" ? (
             "default 1 sentence but extend to max 2 sentences if it feels natural."
@@ -93,28 +107,24 @@ export async function POST(req) {
         }
         4. Always be polite and encouraging. Refrain from inappropriate language.
         5. Strictly stick to the topic and scenario${context.vocabulary ? " and vocabulary" : ""}${context.grammar ? " and grammar" : ""} provided.
-        DO NOT let the conversation deviate.
+        DO NOT let the conversation deviate. Also DO NOT ask the student if they are 'ready to have a conversation in ${context.language}'.
         6. Keep the conversation as natural as possible, e.g. don't tell the student about how you are going to talk about the given topic.
         7. Always respond ONLY in ${context.language}. Do not provide English translations unless the student specifically asks for help.
         8. Vary your conversation style. You don't always need to ask a question; you can also share an observation or react to what the student said.
-        9. Make sure you wrap up the conversation on the last message before you reach the total of ${context.exchanges} exchanges.
+        ${context.language === "Spanish" ? "9. Do NOT use the region-specific grammars 'vos' or 'vosotros' in your conversation.\n10." : "9."}
+         Make sure you naturally wrap up the conversation AS YOU APPROACH the total of ${context.exchanges} exchanges.
       `;
 
-          
-
-   // 2. Initialize Model
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-3-flash-preview", // Use stable version
-      systemInstruction: systemInstruction, // Using the logic from your previous route code
+      model: "gemini-2.5-flash",
+      systemInstruction: systemInstruction,
     });
 
-    // 3. Start Chat with cleaned history
     const chat = model.startChat({
       history: chatHistory,
     });
 
-    // 4. Send the new message
-    const result = await chat.sendMessage(message);
+    const result = await callGeminiWithRetry(() => chat.sendMessage(message));
     const responseText = result.response.text();
 
     return NextResponse.json({ 

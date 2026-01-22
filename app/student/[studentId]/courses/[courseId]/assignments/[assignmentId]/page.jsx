@@ -122,10 +122,15 @@ export default function StudentAssignmentView() {
       setResetting(true);
 
       try {
-        // 🔥 DELETE the submission to reset the entire page state
+        
         const { error } = await supabase
           .from('submissions')
-          .delete()
+          .update({
+            status: 'not_started',
+            chat_history: [],
+            current_exchange_count: 0,
+
+          })
           .eq("id", submission.id);
 
         if (error) throw error;
@@ -220,7 +225,7 @@ export default function StudentAssignmentView() {
       <div className="grid gap-8 ">
         <div className="md:col-span-2 space-y-6">
           <div>
-            <Badge className="mb-2 bg-blue-100 text-md text-blue-700 hover:bg-orange-100 border-none px-4 py-1">
+            <Badge className="mb-2 bg-blue-100 text-md text-blue-700 hover:bg-blue-50 border-none px-4 py-1">
               {assignment.topic}
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight mb-4">{assignment.title}</h1>
@@ -236,7 +241,7 @@ export default function StudentAssignmentView() {
                   <MessageSquare className="h-4 w-4" />
                   <span className="text-xs font-bold uppercase tracking-wider">Required Depth</span>
                 </div>
-                <p className="text-xl font-bold">{assignment.min_exchanges} Exchanges</p>
+                <p className="text-xl font-bold">{assignment.exchanges} Exchanges</p>
               </CardContent>
             </Card>
             <Card>
@@ -362,7 +367,7 @@ export default function StudentAssignmentView() {
             </div>
             </CardContent>
             <CardFooter className="bg-gray-50 flex flex-col items-start gap-2 py-4">
-               <div className="flex items-center gap-2 text-xs text-gray-500">
+               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Clock className="h-3 w-3" />
                 <span>
                     Due: {assignment.due_at 

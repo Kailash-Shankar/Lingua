@@ -113,24 +113,53 @@ export default function StudentDashboard() {
               key={course.id} 
               href={`/student/${studentId}/courses/${course.id}`}
             >
-              <Card className="group hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer shadow-sm">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="p-2.5 bg-blue-100 text-blue-700 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                      <Book className="h-5 w-5" />
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
-                  </div>
-                  <CardTitle className="mt-4 text-xl">{course.title}</CardTitle>
-                  <CardDescription className="flex items-center gap-1.5 mt-1 font-medium text-blue-600">
-                    <span className="w-2 h-2 rounded-full bg-blue-600" />
-                    {course.language}
-                  </CardDescription>
-                  <p className="text-sm text-gray-500 line-clamp-2 mt-4">
-                    {course.description || "No description provided."}
-                  </p>
-                </CardHeader>
-              </Card>
+              <Card className={`group hover:ring-2 ${
+  course.language === "Spanish" ? "hover:ring-blue-500" : 
+  course.language === "French" ? "hover:ring-red-500" : 
+  "hover:ring-green-500"
+} transition-all cursor-pointer shadow-sm`}>
+  <CardHeader>
+    <div className="flex justify-between items-start">
+      {/* Icon Container */}
+      <div className={`p-2.5 rounded-lg transition-colors ${
+        course.language === "Spanish" 
+          ? "bg-blue-50 text-blue-700 group-hover:bg-blue-600" 
+          : course.language === "French" 
+            ? "bg-red-50 text-red-700 group-hover:bg-red-600" 
+            : "bg-green-50 text-green-700 group-hover:bg-green-600"
+      } group-hover:text-white`}>
+        <Book className="h-5 w-5" />
+      </div>
+      
+      {/* Chevron Icon */}
+      <ChevronRight className={`h-5 w-5 text-gray-300 transition-colors ${
+        course.language === "Spanish" ? "group-hover:text-blue-500" : 
+        course.language === "French" ? "group-hover:text-red-500" : 
+        "group-hover:text-green-500"
+      }`} />
+    </div>
+
+    <CardTitle className="mt-4 text-xl">{course.title}</CardTitle>
+    
+    {/* Language Badge/Status */}
+    <CardDescription className={`flex items-center gap-1.5 mt-1 font-medium ${
+      course.language === "Spanish" ? "text-blue-600" : 
+      course.language === "French" ? "text-red-600" : 
+      "text-green-600"
+    }`}>
+      <span className={`w-2 h-2 rounded-full ${
+        course.language === "Spanish" ? "bg-blue-600" : 
+        course.language === "French" ? "bg-red-600" : 
+        "bg-green-600"
+      }`} />
+      {course.language}
+    </CardDescription>
+
+    <p className="text-sm text-gray-500 line-clamp-2 mt-4">
+      {course.description || "No description provided."}
+    </p>
+  </CardHeader>
+</Card>
             </Link>
           ))}
         </div>

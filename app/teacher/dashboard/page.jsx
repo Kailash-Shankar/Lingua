@@ -67,8 +67,8 @@ const TeacherDashboard = () => {
       {courses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <Card key={course.id} className="hover:shadow-lg transition-shadow flex flex-col">
-              <CardHeader>
+            <Card key={course.id} className ="hover:shadow-lg transition-shadow flex flex-col">
+              <CardHeader>  
                 <div className="flex justify-between items-start gap-2">
                   <CardTitle className="text-xl font-bold truncate">{course.title}</CardTitle>
                   <div className='grid grid-cols-1 gap-2'>

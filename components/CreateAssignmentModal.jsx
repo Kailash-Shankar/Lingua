@@ -72,7 +72,7 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
             vocabulary,
             grammar,
             difficulty,
-            min_exchanges: minExchanges,
+            exchanges: minExchanges,
             start_at: startAtUTC,
             due_at: dueAtUTC, 
           }
@@ -212,14 +212,14 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
                 <DropdownMenuItem onClick={() => setMinExchanges(5)}>
                     5 Exchanges (Quick Practice)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMinExchanges(10)}>
-                    10 Exchanges (Standard)
+                <DropdownMenuItem onClick={() => setMinExchanges(8)}>
+                    8 Exchanges (Standard)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMinExchanges(15)}>
-                    15 Exchanges (In-Depth)
+                <DropdownMenuItem onClick={() => setMinExchanges(12)}>
+                    12 Exchanges (In-Depth)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMinExchanges(20)}>
-                    20 Exchanges (Extended)
+                <DropdownMenuItem onClick={() => setMinExchanges(16)}>
+                    16 Exchanges (Extended)
                 </DropdownMenuItem>
               </DropdownMenuContent>
 
@@ -229,14 +229,14 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
                 <DropdownMenuItem onClick={() => setMinExchanges(6)}>
                     6 Exchanges (Quick Practice)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMinExchanges(12)}>
-                    12 Exchanges (Standard)
+                <DropdownMenuItem onClick={() => setMinExchanges(10)}>
+                    10 Exchanges (Standard)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(14)}>
+                    14 Exchanges (In-Depth)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setMinExchanges(18)}>
-                    18 Exchanges (In-Depth)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMinExchanges(24)}>
-                    24 Exchanges (Extended)
+                    18 Exchanges (Extended)
                 </DropdownMenuItem>
               </DropdownMenuContent>
                 ) : (
@@ -244,14 +244,17 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
                 <DropdownMenuItem onClick={() => setMinExchanges(8)}>
                     8 Exchanges (Quick Practice)
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(12)}>
+                    12 Exchanges (Standard)
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setMinExchanges(16)}>
-                    16 Exchanges (Standard)
+                    16 Exchanges (In-Depth)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMinExchanges(20)}>
+                    20 Exchanges (Extended)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setMinExchanges(24)}>
-                    24 Exchanges (In-Depth)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMinExchanges(32)}>
-                    32 Exchanges (Extended)
+                    24 Exchanges (Super Extended)
                 </DropdownMenuItem>
               </DropdownMenuContent>
               ))}
