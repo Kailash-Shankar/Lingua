@@ -72,10 +72,10 @@ const TeacherDashboard = () => {
                 <div className="flex justify-between items-start gap-2">
                   <CardTitle className="text-xl font-bold truncate">{course.title}</CardTitle>
                   <div className='grid grid-cols-1 gap-2'>
-                  <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded whitespace-nowrap">
+                  <span className={`text-xs font-medium ${course.language === 'Spanish' ? "bg-blue-100 text-blue-800" : (course.language === "French" ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-800")} px-2 py-1 rounded whitespace-nowrap`}>
                     {course.language}
                   </span>
-                  <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded whitespace-nowrap">
+                  <span className={`text-xs font-medium ${course.level === 'Beginner (Year 1)' ? "bg-green-100 text-green-800" : (course.level === "Intermediate (Year 2)" ? "bg-yellow-100 text-yellow-800" : "bg-orange-100 text-orange-800")} px-2 py-1 rounded whitespace-nowrap`}>
                     {course.level}
                   </span>
                   </div>

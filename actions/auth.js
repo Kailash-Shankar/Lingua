@@ -74,3 +74,36 @@ export async function logout() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+
+export async function updateProfileMetadata(formData, courseId) {
+  const supabase = await createClient();
+
+  // 1. Get the current user to ensure they are authorized
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw new Error("Unauthorized");
+
+  const firstName = formData.get("first_name");
+  const lastName = formData.get("last_name");
+  const studentId = formData.get("student_id");
+
+  // 2. Perform the update
+  const { data, error } = await supabase
+    .from("course_enrollments")
+    .update({
+      First_Name: firstName,
+      Last_Name: lastName,
+      Student_id: studentId // Remember: studentId is stored as requested
+    })
+    .match({ 
+      user_id: user.id, // Security: Only update rows belonging to this user
+      course_id: courseId // Specificity: Only update for this course
+    })
+    .select(); // Returns the updated row
+
+  if (error) {
+    console.error("Update error:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data };
+}

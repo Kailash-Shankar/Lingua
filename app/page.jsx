@@ -1,3 +1,5 @@
+"use client"
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +12,15 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/header";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
 
-useEffect(() => {
+
+
+
+export default function Home() {
+
+  useEffect(() => {
   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
     console.log("Auth Event:", event);
     if (event === "SIGNED_OUT") {
@@ -23,8 +32,6 @@ useEffect(() => {
   return () => subscription.unsubscribe();
 }, []);
 
-
-export default function Home() {
   return (
     <div>
       <div className="flex flex-col min-h-screen bg-bgorange/80">

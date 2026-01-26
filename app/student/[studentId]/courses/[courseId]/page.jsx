@@ -73,9 +73,10 @@ export default function CourseDetailPage() {
         .from("submissions")
         .select(`
           *,
-          assignments (title, topic, difficulty, exchanges)
+          assignments!inner (title, topic, difficulty, exchanges, courses!inner(language))
         `)
         .eq("student_id", studentId)
+        .eq("assignments.courses.language", courseData.language)
         .eq("status", "completed");
 
       if (!sError) {
@@ -214,7 +215,7 @@ export default function CourseDetailPage() {
                               {sub.assignments.exchanges} Exchanges
                             </div>
                             <span className="text-sm text-gray-500 ml-1">
-                              Completed on {new Date(sub.submitted_at).toLocaleDateString()}
+                              Completed on {new Date(sub.submitted_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                             </span>
                           </div>
                         </div>

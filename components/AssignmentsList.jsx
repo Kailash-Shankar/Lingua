@@ -10,7 +10,8 @@ import {
   ChevronRight, 
   CalendarDays,
   History,
-  PlayCircle
+  PlayCircle,
+  Zap
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -49,8 +50,12 @@ export function AssignmentsList({ assignments }) {
       <Card key={assignment.id} className="overflow-hidden hover:shadow-md transition-shadow border-l-4 border-l-black">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start mb-2">
-            <Badge variant={assignment.difficulty === "Challenging" ? "destructive" : "secondary"} className={assignment.difficulty === "Standard" ? "bg-blue-100 text-blue-700 hover:bg-blue-100" : ""}>
-              {assignment.difficulty}
+            <Badge variant={assignment.difficulty === "Challenging" ? "destructive" : "secondary"} className={assignment.difficulty === "Challenging" ? "bg-red-100 text-red-700 hover:bg-red-200" : ""}>
+              {assignment.difficulty == "Challenging" && (
+                <>
+                <Zap className="h-3 w-3 mr-1 inline-block" /> Challenge
+                </>
+                )}
             </Badge>
             <div className="flex items-center gap-1 text-xs text-gray-500 font-medium">
               <MessageSquare className="h-3 w-3" />

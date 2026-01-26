@@ -189,8 +189,30 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
               id="scenario" 
               name="scenario" 
               placeholder="Describe the scenario..." 
-              className="min-h-[100px]"
+              className="min-h-[75px]"
               required
+            />
+          </div>
+
+           <div className="space-y-2">
+            <Label htmlFor="vocabulary">Vocabulary (optional)</Label>
+            <Input 
+              id="vocabulary" 
+              name="vocabulary" 
+              placeholder="List key vocabulary words to be included in the discussion..." 
+              
+              
+            />
+          </div>
+
+           <div className="space-y-2">
+            <Label htmlFor="grammar">Grammar (optional)</Label>
+            <Input 
+              id="grammar" 
+              name="grammar" 
+              placeholder="List grammar tenses/concepts to be included in the discussion..." 
+             
+             
             />
           </div>
 

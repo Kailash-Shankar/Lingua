@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import ChatMessage from "@/components/ChatMessage"; 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Send, Loader2, User, CheckCircle, Lock, Calendar } from "lucide-react"; // Added Icons
+import { ArrowLeft, Send, Loader2, User, CheckCircle, Lock, MessageSquare, MessageCircle } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
 
@@ -14,7 +14,13 @@ export default function AssignmentChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // State Management
+  // --- Refs ---
+  const chatEndRef = useRef(null);
+  const hasGreeted = useRef(false);
+  const isGreetingInProgress = useRef(false);
+  const confettiFired = useRef(false);
+
+  // --- State Management ---
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +30,7 @@ export default function AssignmentChatPage() {
   const [charMemory, setCharMemory] = useState(null);
   const [showAccents, setShowAccents] = useState(false);
   const [user, setUser] = useState(null);
-  const [isLocked, setIsLocked] = useState({ locked: false, reason: "" }); // New State
+  const [isLocked, setIsLocked] = useState({ locked: false, reason: "" });
 
   const avatarPath = searchParams.get('v') || '/f1.png';
   
@@ -36,6 +42,7 @@ export default function AssignmentChatPage() {
     Default: ['á', 'é', 'í', 'ó', 'ú', 'ñ']
   };
 
+  // Scroll to bottom helper
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
@@ -53,12 +60,14 @@ export default function AssignmentChatPage() {
           .select(`*, courses ( language, level )`)
           .eq("id", assignmentId)
           .single();
+        
+        if (!assignData) return;
         setAssignment(assignData);
 
         // --- LOCK LOGIC ---
         const now = new Date();
-        const startDate = new Date(assignData.start_date);
-        const dueDate = new Date(assignData.due_date);
+        const startDate = new Date(assignData.start_at);
+        const dueDate = new Date(assignData.due_at);
 
         if (now < startDate) {
           setIsLocked({ 
@@ -71,7 +80,6 @@ export default function AssignmentChatPage() {
             reason: "This assignment is now closed as the due date has passed." 
           });
         }
-        // ------------------
 
         const { data: subData } = await supabase
           .from("submissions")
@@ -108,11 +116,17 @@ export default function AssignmentChatPage() {
     if (assignmentId && studentId) fetchData();
   }, [assignmentId, studentId]);
 
-  // 2. AI Greeting logic (Updated to check for Lock)
+  // 2. AI Greeting logic
   useEffect(() => {
     const triggerGreeting = async () => {
-      // Don't greet if locked
-      if (initializing || isLocked.locked || hasGreeted.current || isGreetingInProgress.current || !submission) return;
+      if (
+        initializing || 
+        isLocked.locked || 
+        hasGreeted.current || 
+        isGreetingInProgress.current || 
+        !submission || 
+        !assignment
+      ) return;
       
       isGreetingInProgress.current = true;
       hasGreeted.current = true;
@@ -135,6 +149,7 @@ export default function AssignmentChatPage() {
             }
           }),
         });
+
         const data = await response.json();
         const assistantMsg = { role: "assistant", text: data.reply };
         
@@ -147,6 +162,7 @@ export default function AssignmentChatPage() {
         setSubmission(prev => ({ ...prev, chat_history: [assistantMsg] }));
       } catch (err) {
         console.error("Greeting Error:", err);
+        hasGreeted.current = false; // Allow retry on failure
       } finally {
         setLoading(false);
         isGreetingInProgress.current = false;
@@ -252,8 +268,6 @@ export default function AssignmentChatPage() {
     document.getElementById('chat-input')?.focus();
   };
 
-  const chatEndRef = useRef(null);
-
   if (initializing) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
@@ -267,6 +281,9 @@ export default function AssignmentChatPage() {
               {isLocked.locked ? "Assignment Locked" : `Chatting with ${submission?.character_id}`}
             </p>
           </div>
+          <div className="flex align-right ml-auto text-sm text-gray-500 font-medium">
+          <MessageCircle className="mr-2 flex align-center h-5 w-5" />{submission?.current_exchange_count} / {assignment?.exchanges} Exchanges
+        </div>
         </div>
         <div className="w-full bg-gray-100 h-2 mt-3 rounded-full overflow-hidden">
           <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${Math.min(progressValue, 100)}%` }} />
@@ -274,17 +291,14 @@ export default function AssignmentChatPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* LOCK OVERLAY IF BEFORE START DATE OR AFTER DUE DATE */}
         {isLocked.locked && (
-          <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-10 flex flex-col items-center text-center space-y-4 my-10 animate-in fade-in zoom-in duration-500">
+          <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-10 flex flex-col items-center text-center space-y-4 my-10">
             <div className="bg-red-50 p-4 rounded-full">
               <Lock className="h-10 w-10 text-red-500" />
             </div>
             <h3 className="text-xl font-bold text-gray-900">Access Restricted</h3>
             <p className="text-gray-500 max-w-sm">{isLocked.reason}</p>
-            <Button variant="outline" onClick={() => router.back()}>
-              Go Back
-            </Button>
+            <Button variant="outline" onClick={() => router.back()}>Go Back</Button>
           </div>
         )}
 
@@ -323,7 +337,7 @@ export default function AssignmentChatPage() {
         <div className="max-w-4xl mx-auto">
           {isLocked.locked ? (
              <div className="flex items-center justify-center p-4 bg-gray-50 rounded-2xl border border-gray-200 text-gray-400 font-medium italic">
-                The conversation is closed.
+               The conversation is closed.
              </div>
           ) : submission && progressValue >= 100 ? (
             <Button onClick={handleFinishAssignment} disabled={loading} className="w-full py-8 bg-green-600 text-white text-xl font-bold rounded-2xl">
@@ -334,7 +348,7 @@ export default function AssignmentChatPage() {
               <button onClick={() => setShowAccents(!showAccents)} className="w-12 h-12 bg-blue-400 rounded-xl font-bold">Á</button>
               {showAccents && (
                 <div className="absolute bottom-16 bg-white border p-2 flex gap-2 rounded-xl shadow-lg z-50">
-                  {ACCENT_MAP[assignment?.courses?.language]?.map(c => (
+                  {ACCENT_MAP[assignment?.courses?.language || 'Default']?.map(c => (
                     <button key={c} onClick={() => insertAccent(c)} className="w-8 h-8 border rounded hover:bg-gray-100">{c}</button>
                   ))}
                 </div>
@@ -346,9 +360,9 @@ export default function AssignmentChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                disabled={loading || !submission || isLocked.locked}
+                disabled={loading || !submission}
               />
-              <Button onClick={sendMessage} disabled={loading || !input.trim() || isLocked.locked} className="h-12 w-12 rounded-xl">
+              <Button onClick={sendMessage} disabled={loading || !input.trim()} className="h-12 w-12 rounded-xl">
                 <Send />
               </Button>
             </div>

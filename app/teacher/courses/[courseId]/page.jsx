@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -16,66 +16,92 @@ import {
   Cog, 
   Copy, 
   Check, 
-  ArrowLeft 
+  ArrowLeft,
+  UserCircle,
+  Mail,
+  ChevronRight,
+  Hash
 } from "lucide-react";
 
 export default function CourseDetailPage() {
   const { courseId } = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Get active tab from URL or default to "assignments"
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "assignments");
+
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   
   const [assignmentCount, setAssignmentCount] = useState(0);
   const [studentCount, setStudentCount] = useState(0);
-
+  const [students, setStudents] = useState([]); 
   const [assignments, setAssignments] = useState([]);
 
-const fetchCourseData = async () => {
-      setLoading(true);
-      try {
-        // 1. Fetch Course Details
-        const { data: courseData, error: courseError } = await supabase
-          .from("courses")
-          .select("*")
-          .eq("id", courseId)
-          .single();
+  // Function to update URL when tab changes
+  const handleTabChange = (value) => {
+  // Update UI immediately (Instant)
+  setActiveTab(value);
 
-        if (courseError) throw courseError;
-        setCourse(courseData);
+  // Update URL in the background (Non-blocking)
+  const params = new URLSearchParams(window.location.search);
+  params.set("tab", value);
+  window.history.replaceState(null, "", `?${params.toString()}`);
+};
+  const fetchCourseData = async () => {
+    setLoading(true);
+    try {
+      const { data: courseData, error: courseError } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("id", courseId)
+        .single();
 
-        
+      if (courseError) throw courseError;
+      setCourse(courseData);
 
-        // 2. Fetch Assignments Count
-        const { data: assignmentsData, error: aError } = await supabase
-      .from("assignments")
-      .select("*")
-      .eq("course_id", courseId)
-      .order("created_at", { ascending: false });
+      const { data: assignmentsData, error: aError } = await supabase
+        .from("assignments")
+        .select("*")
+        .eq("course_id", courseId)
+        .order("created_at", { ascending: false });
 
-    if (!aError) {
-      setAssignments(assignmentsData || []);
-      setAssignmentCount(assignmentsData?.length || 0);
-    }
-
-        // 3. Fetch Students Count (Enrollments table)
-        const { count: sCount, error: sError } = await supabase
-          .from("course_enrollments")
-          .select("*", { count: 'exact', head: true })
-          .eq("course_id", courseId);
-
-        if (!sError) setStudentCount(sCount || 0);
-
-        
-
-      } catch (err) {
-        console.error("Error fetching course data:", err);
-      } finally {
-        setLoading(false);
+      if (!aError) {
+        setAssignments(assignmentsData || []);
+        setAssignmentCount(assignmentsData?.length || 0);
       }
 
-      
-    };
+      const { data: enrollmentData, error: sError } = await supabase
+        .from("course_enrollments")
+        .select(`
+          enrolled_at,
+          First_Name,
+          Last_Name,
+          Student_id, 
+          student_id
+        `)
+        .eq("course_id", courseId);
 
+      if (!sError && enrollmentData) {
+        const studentList = enrollmentData.map(e => ({
+          id: e.Student_id,
+          firstname: e.First_Name,
+          lastname: e.Last_Name,
+          enrolled_at: e.enrolled_at,
+          realid: e.student_id
+      }));
+        setStudents(studentList);
+        setStudentCount(studentList.length);
+      }
+
+    } catch (err) {
+      console.error("Error fetching course data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (courseId) fetchCourseData();
@@ -124,7 +150,11 @@ const fetchCourseData = async () => {
         </div>
       </div>
 
-      <Tabs defaultValue="assignments" className="space-y-6">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={handleTabChange} 
+        className="space-y-6"
+      >
         <TabsList className="h-10">
           <TabsTrigger value="assignments" className="flex gap-2">
             <MessageSquare className="h-4 w-4" /> Assignments ({assignmentCount})
@@ -140,45 +170,71 @@ const fetchCourseData = async () => {
           </TabsTrigger>
         </TabsList>
 
-                <TabsContent value="assignments">
-        <div className="space-y-6">
+        <TabsContent value="assignments">
+          <div className="space-y-6">
             <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Course Assignments</h3>
-            {assignmentCount > 0 && (
+              <h3 className="text-lg font-semibold">Course Assignments</h3>
+              {assignmentCount > 0 && (
                 <CreateAssignmentModal courseId={courseId} level={course.level} onAssignmentCreated={fetchCourseData} />
-            )}
+              )}
             </div>
 
             {assignmentCount === 0 ? (
-            <Card className="border-dashed bg-gray-50/50 flex flex-col items-center py-12">
+              <Card className="border-dashed bg-gray-50/50 flex flex-col items-center py-12">
                 <p className="text-sm text-gray-500 italic mb-4">No chat assignments created yet.</p>
                 <CreateAssignmentModal courseId={courseId} level={course.level} onAssignmentCreated={fetchCourseData} />
-            </Card>
+              </Card>
             ) : (
-            <AssignmentsList assignments={assignments} />
+              <AssignmentsList assignments={assignments} />
             )}
-        </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="students">
-          {studentCount === 0 ? (
-            <Card className="border-dashed bg-gray-50/50">
-              <CardHeader className="text-center">
-                <CardTitle className="text-gray-400">No Students Yet</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center py-6 text-center">
-                <p className="text-sm text-gray-500 italic mb-2">No students enrolled in this course yet.</p>
-                <p className="text-sm text-gray-500 mb-6">Students can join using this course code:</p>
-                <div className="bg-white border-2 border-black p-4 rounded-lg">
-                   <p className="text-4xl font-mono font-bold tracking-widest">{course.course_code || "------"}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              <p>List of enrolled students will go here...</p>
-            </div>
-          )}
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold">Enrolled Students</h3>
+            {studentCount === 0 ? (
+              <Card className="border-dashed bg-gray-50/50">
+                <CardContent className="flex flex-col items-center py-12 text-center">
+                  <p className="text-sm text-gray-500 italic mb-6">No students enrolled in this course yet.</p>
+                  <div className="bg-white border-2 border-black p-6 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <p className="text-xs font-bold uppercase text-gray-400 mb-2">Share Join Code</p>
+                    <p className="text-4xl font-mono font-bold tracking-widest text-blue-600">{course.course_code || "------"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {students.map((student) => (
+                  <div 
+                    key={student.id} 
+                    className="flex items-center justify-between p-4 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="bg-blue-100 p-2 rounded-full">
+                        <UserCircle className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900">{student.firstname || "Unknown Student"} {student.lastname || ""}</p>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Hash className="h-4 w-4" />
+                          <span>ID: {student.id || "No ID provided"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Link href={`${courseId}/students/${student.realid}`} >
+                      <Button variant="ghost" size="sm" className="text-blue-600 font-bold">
+                        View Progress
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
