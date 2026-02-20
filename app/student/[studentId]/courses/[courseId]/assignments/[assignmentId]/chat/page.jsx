@@ -33,7 +33,7 @@ export default function AssignmentChatPage() {
   const [isLocked, setIsLocked] = useState({ locked: false, reason: "" });
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [specificMemory, setSpecificMemory] = useState(null);
-  
+  const [name, setName] = useState(null);
 
   // --- Tooltip & Vocab States ---
   const [tooltip, setTooltip] = useState({ show: false, word: "", x: 0, y: 0 });
@@ -155,7 +155,7 @@ export default function AssignmentChatPage() {
 
         const { data: enrollment } = await supabase
           .from("course_enrollments")
-          .select("memory_1, memory_2, memory_3, memory_4") // Adjust based on actual columns
+          .select("memory_1, memory_2, memory_3, memory_4, First_Name") // Adjust based on actual columns
           .eq("course_id", courseId)
           .eq("student_id", studentId)
           .single();
@@ -170,8 +170,9 @@ export default function AssignmentChatPage() {
         if (!assignData) return;
         setAssignment(assignData);
 
-        
-      
+        if (enrollment?.First_Name){
+        setName(enrollment.First_Name);
+      }
 
         const now = new Date();
         const startDate = new Date(assignData.start_at);
@@ -239,6 +240,7 @@ export default function AssignmentChatPage() {
     const triggerGreeting = async () => {
       if (
         initializing || 
+        !name ||
         isLocked.locked || 
         hasGreeted.current || 
         isGreetingInProgress.current || 
@@ -266,7 +268,7 @@ export default function AssignmentChatPage() {
               character_description: charMemory?.character_description || "",
               grammar: assignment.grammar,
               vocabulary: assignment.vocabulary,
-              student_name: user?.user_metadata?.first_name || "",
+              student_name: name,
               memory: specificMemory ? specificMemory.join(", " ) : null, // Pass the specific traits as context
             }
           }),
@@ -291,7 +293,7 @@ export default function AssignmentChatPage() {
       }
     };
     triggerGreeting();
-  }, [initializing, assignment, submission, charMemory, isLocked.locked]);
+  }, [initializing, assignment, submission, charMemory, isLocked.locked, name]);
 
   // 3. Progress Calculation
   const progressValue = (assignment?.exchanges && submission) 
@@ -331,7 +333,7 @@ export default function AssignmentChatPage() {
             vocabulary: assignment.vocabulary,
             current_exchange_count: submission.current_exchange_count,
             exchanges: assignment.exchanges,
-            student_name: user?.user_metadata?.first_name || "",
+            student_name: name,
             memory: specificMemory ? specificMemory.join(", " ) : null, // Pass the specific traits as context
           }
         }),
@@ -466,7 +468,7 @@ export default function AssignmentChatPage() {
                 {msg.user ? <User className="p-2" /> : <img src={avatarPath} className="object-cover h-full w-full" />}
               </div>
               <div className={`px-4 py-3 rounded-2xl ${msg.user ? "bg-orange-300 text-blue-900" : "bg-white border text-gray-800"}`}>
-                <div className="text-[10px] font-bold uppercase mb-1">{msg.user ? (user?.user_metadata?.first_name || "You") : submission?.character_id}</div>
+                <div className="text-[10px] font-bold uppercase mb-1">{msg.user ? (name || "You") : submission?.character_id}</div>
                 <ChatMessage text={msg.text} isUser={msg.user} />
               </div>
             </div>
