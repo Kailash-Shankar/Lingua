@@ -31,6 +31,14 @@ export default function AssignmentChatPage() {
   const [showAccents, setShowAccents] = useState(false);
   const [user, setUser] = useState(null);
   const [isLocked, setIsLocked] = useState({ locked: false, reason: "" });
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [specificMemory, setSpecificMemory] = useState(null);
+  
+
+  // --- Tooltip & Vocab States ---
+  const [tooltip, setTooltip] = useState({ show: false, word: "", x: 0, y: 0 });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
 
   const avatarPath = searchParams.get('v') || '/f1.png';
   
@@ -41,6 +49,95 @@ export default function AssignmentChatPage() {
     Italian: ['à', 'è', 'é', 'ì', 'ò', 'ó', 'ù'],
     Default: ['á', 'é', 'í', 'ó', 'ú', 'ñ']
   };
+
+  // --- Tooltip Logic ---
+  const handleTextSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const rawText = selection.toString();
+    if (!rawText.trim().length) {
+      setTooltip(prev => ({ ...prev, show: false }));
+      return;
+    }
+
+    // Snap boundaries to whole words without collapsing multi-word selections
+    if (!selection.isCollapsed) {
+      const range = selection.getRangeAt(0);
+
+      // Expand the start backwards to the beginning of the word
+      selection.collapseToStart();
+      selection.modify("extend", "backward", "word");
+      const startRange = selection.getRangeAt(0);
+
+      // Expand the end forwards to the end of the word
+      selection.setBaseAndExtent(
+        startRange.startContainer,
+        startRange.startOffset,
+        range.endContainer,
+        range.endOffset
+      );
+      selection.modify("extend", "forward", "word");
+    }
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    
+    // Clean up trailing punctuation for the saved word/phrase
+    const finalString = selection.toString().trim().replace(/[.,!?;:]+$/, "");
+
+    if (finalString) {
+      setIsAdded(false);
+      setTooltip({
+        show: true,
+        word: finalString,
+        x: rect.left + rect.width / 2,
+        y: rect.top + window.scrollY - 105,
+      });
+    }
+  };
+
+  const saveToVocab = async () => {
+    if (isSaving || isAdded) return;
+    try {
+      setIsSaving(true);
+      const { data: enrollment } = await supabase
+        .from("course_enrollments")
+        .select("vocab_list")
+        .eq("course_id", courseId)
+        .eq("student_id", studentId)
+        .single();
+
+      const currentList = enrollment?.vocab_list || [];
+      if (!currentList.includes(tooltip.word)) {
+        await supabase
+          .from("course_enrollments")
+          .update({ vocab_list: [...currentList, tooltip.word] })
+          .eq("course_id", courseId)
+          .eq("student_id", studentId);
+      }
+      setIsAdded(true);
+      setTimeout(() => {
+        setTooltip(prev => ({ ...prev, show: false }));
+        setIsAdded(false);
+      }, 1500);
+    } catch (err) {
+      console.error("Error saving vocab:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    const hide = () => {
+      if (!isSaving) {
+        setTooltip((prev) => ({ ...prev, show: false }));
+        setIsAdded(false);
+      }
+    };
+    window.addEventListener("mousedown", hide);
+    return () => window.removeEventListener("mousedown", hide);
+  }, [isSaving]);
 
   // Scroll to bottom helper
   useEffect(() => {
@@ -55,30 +152,43 @@ export default function AssignmentChatPage() {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         setUser(currentUser);
 
+
+        const { data: enrollment } = await supabase
+          .from("course_enrollments")
+          .select("memory_1, memory_2, memory_3, memory_4") // Adjust based on actual columns
+          .eq("course_id", courseId)
+          .eq("student_id", studentId)
+          .single();
+
+        
         const { data: assignData } = await supabase
-          .from("assignments")
-          .select(`*, courses ( language, level )`)
+         .from("assignments")
+          .select(`*, courses!assignments_course_id_fkey ( language, level )`)
           .eq("id", assignmentId)
           .single();
         
         if (!assignData) return;
         setAssignment(assignData);
 
-        // --- LOCK LOGIC ---
+        
+      
+
         const now = new Date();
         const startDate = new Date(assignData.start_at);
-        const dueDate = new Date(assignData.due_at);
+        const dueDate = assignData.due_at ? new Date(assignData.due_at) : null;
 
         if (now < startDate) {
           setIsLocked({ 
             locked: true, 
             reason: `This assignment opens on ${startDate.toLocaleDateString()} at ${startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.` 
           });
-        } else if (now > dueDate) {
+        } else if (dueDate && now > dueDate) {
           setIsLocked({ 
             locked: true, 
             reason: "This assignment is now closed as the due date has passed." 
           });
+        } else {
+          setIsLocked({ locked: false, reason: "" });
         }
 
         const { data: subData } = await supabase
@@ -98,6 +208,14 @@ export default function AssignmentChatPage() {
             .eq("language", assignData.courses.language)
             .single();
           setCharMemory(charData);
+
+          const charId = charData?.order?.toString().charAt(0);
+          const memoryKey = `memory_${charId}`;
+          if (enrollment?.[memoryKey]) {
+            setSpecificMemory(enrollment[memoryKey]);
+          }
+
+
 
           if (subData.chat_history?.length > 0) {
             hasGreeted.current = true;
@@ -146,6 +264,10 @@ export default function AssignmentChatPage() {
               scenario: assignment.scenario,
               character_id: submission.character_id,
               character_description: charMemory?.character_description || "",
+              grammar: assignment.grammar,
+              vocabulary: assignment.vocabulary,
+              student_name: user?.user_metadata?.first_name || "",
+              memory: specificMemory ? specificMemory.join(", " ) : null, // Pass the specific traits as context
             }
           }),
         });
@@ -162,7 +284,7 @@ export default function AssignmentChatPage() {
         setSubmission(prev => ({ ...prev, chat_history: [assistantMsg] }));
       } catch (err) {
         console.error("Greeting Error:", err);
-        hasGreeted.current = false; // Allow retry on failure
+        hasGreeted.current = false;
       } finally {
         setLoading(false);
         isGreetingInProgress.current = false;
@@ -205,6 +327,12 @@ export default function AssignmentChatPage() {
             level: assignment.courses.level,
             character_id: submission.character_id,
             character_description: charMemory?.character_description || "",
+            grammar: assignment.grammar,
+            vocabulary: assignment.vocabulary,
+            current_exchange_count: submission.current_exchange_count,
+            exchanges: assignment.exchanges,
+            student_name: user?.user_metadata?.first_name || "",
+            memory: specificMemory ? specificMemory.join(", " ) : null, // Pass the specific traits as context
           }
         }),
       });
@@ -230,38 +358,64 @@ export default function AssignmentChatPage() {
 
   // 5. Finalize Logic
   const handleFinishAssignment = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: "GENERATE_FEEDBACK_SUMMARY",
-          history: submission.chat_history, 
-          context: {
-            level: assignment.courses.level,
-            language: assignment.courses.language,
-            topic: assignment.topic,
-            difficulty: assignment.difficulty,
-          }
-        }),
-      });
-      const result = await response.json();
-      
-      await supabase.from("submissions").update({
-          pos_feedback: result.strengths,
-          neg_feedback: result.improvements,
-          status: 'completed',
-          submitted_at: new Date().toISOString(),
-      }).eq("id", submission.id);
+  setIsFinalizing(true);
+  
+  try {
+    // 1. Get the feedback from Gemini (This is the "heavy" part)
+    const response = await fetch("/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "GENERATE_FEEDBACK_SUMMARY",
+        history: submission.chat_history, 
+        context: {
+          level: assignment.courses.level,
+          language: assignment.courses.language,
+          topic: assignment.topic,
+          difficulty: assignment.difficulty,
+        }
+      }),
+    });
+  
+    const result = await response.json();
 
-      router.push(`/student/${studentId}/courses/${courseId}/assignments/${assignmentId}/results`);
-    } catch (err) {
-      console.error("Failed to finalize:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const charId = charMemory?.order?.toString().charAt(0);
+    const memoryColumn = `memory_${charId}`;
+    
+    // 2. CRITICAL UPDATE: Save the feedback so the results page has data
+    const { error: subError } = await supabase
+      .from("submissions")
+      .update({
+        pos_feedback: result.strengths,
+        neg_feedback: result.improvements,
+        status: "completed",
+        submitted_at: new Date().toISOString(),
+      })
+      .eq("id", submission.id);
+
+    if (subError) throw subError;
+
+    // 3. BACKGROUND UPDATE: Don't 'await' this! 
+    // This runs in the background while the user moves to the next page.
+    supabase
+      .from("course_enrollments")
+      .update({ [memoryColumn]: result.personality_traits })
+      .eq("course_id", courseId)
+      .eq("student_id", studentId)
+      .then(({ error }) => {
+        if (error) console.error("Background memory update failed:", error);
+      });
+
+    // 4. IMMEDIATE REDIRECT
+    router.push(
+      `/student/${studentId}/courses/${courseId}/assignments/${assignmentId}/results`
+    );
+
+  } catch (err) {
+    console.error("Failed to finalize:", err);
+    setIsFinalizing(false);
+  }
+};
 
   const insertAccent = (char) => {
     setInput(prev => prev + char);
@@ -271,7 +425,7 @@ export default function AssignmentChatPage() {
   if (initializing) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-gray-50">
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-gray-50 relative">
       <header className="flex-none bg-white border-b px-6 py-4 shadow-sm z-20">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}><ArrowLeft /></Button>
@@ -282,15 +436,18 @@ export default function AssignmentChatPage() {
             </p>
           </div>
           <div className="flex align-right ml-auto text-sm text-gray-500 font-medium">
-          <MessageCircle className="mr-2 flex align-center h-5 w-5" />{submission?.current_exchange_count} / {assignment?.exchanges} Exchanges
-        </div>
+            <MessageCircle className="mr-2 flex align-center h-5 w-5" />{submission?.current_exchange_count} / {assignment?.exchanges} Exchanges
+          </div>
         </div>
         <div className="w-full bg-gray-100 h-2 mt-3 rounded-full overflow-hidden">
           <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${Math.min(progressValue, 100)}%` }} />
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-6"
+        onMouseUp={handleTextSelection}
+      >
         {isLocked.locked && (
           <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-10 flex flex-col items-center text-center space-y-4 my-10">
             <div className="bg-red-50 p-4 rounded-full">
@@ -305,8 +462,8 @@ export default function AssignmentChatPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.user ? "justify-end" : "justify-start"}`}>
             <div className={`flex gap-3 max-w-[80%] ${msg.user ? "flex-row-reverse" : "flex-row"}`}>
-              <div className="h-9 w-9 rounded-full overflow-hidden border">
-                {msg.user ? <User className="p-2" /> : <img src={avatarPath} className="object-cover" />}
+              <div className="h-9 w-9 rounded-full overflow-hidden border bg-white flex items-center justify-center">
+                {msg.user ? <User className="p-2" /> : <img src={avatarPath} className="object-cover h-full w-full" />}
               </div>
               <div className={`px-4 py-3 rounded-2xl ${msg.user ? "bg-orange-300 text-blue-900" : "bg-white border text-gray-800"}`}>
                 <div className="text-[10px] font-bold uppercase mb-1">{msg.user ? (user?.user_metadata?.first_name || "You") : submission?.character_id}</div>
@@ -319,7 +476,7 @@ export default function AssignmentChatPage() {
         {loading && !isLocked.locked && (
           <div className="flex justify-start">
              <div className="flex gap-3 max-w-[80%] flex-row">
-              <div className="h-9 w-9 rounded-full overflow-hidden border bg-white flex items-center justify-center">
+              <div className="h-9 w-9 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-none">
                 <img src={avatarPath} className="object-cover" />
               </div>
               <div className="px-4 py-5 rounded-2xl bg-white border text-gray-800 flex items-center gap-1">
@@ -340,8 +497,8 @@ export default function AssignmentChatPage() {
                The conversation is closed.
              </div>
           ) : submission && progressValue >= 100 ? (
-            <Button onClick={handleFinishAssignment} disabled={loading} className="w-full py-8 bg-green-600 text-white text-xl font-bold rounded-2xl">
-              {loading ? <Loader2 className="animate-spin" /> : <><CheckCircle className="mr-2" /> Finish Assignment</>}
+            <Button onClick={handleFinishAssignment} disabled={isFinalizing} className="w-full py-8 bg-green-600 text-white text-xl font-bold rounded-2xl">
+              {isFinalizing ? <Loader2 className="animate-spin" /> : <><CheckCircle className="mr-2" /> Finish Assignment</>}
             </Button>
           ) : (
             <div className="relative flex items-center gap-2">
@@ -353,7 +510,7 @@ export default function AssignmentChatPage() {
                   ))}
                 </div>
               )}
-              <input 
+              <textarea 
                 id="chat-input"
                 className="flex-1 bg-gray-100 rounded-2xl py-4 px-5 outline-none"
                 placeholder="Type your message..."
@@ -369,6 +526,29 @@ export default function AssignmentChatPage() {
           )}
         </div>
       </footer>
+
+      {tooltip.show && (
+        <div 
+          className="absolute z-[100] bg-black text-white px-3 py-2 rounded-xl text-sm shadow-2xl flex items-center gap-3 -translate-x-1/2"
+          style={{ left: tooltip.x, top: tooltip.y }}
+          onMouseDown={(e) => e.stopPropagation()} 
+        >
+          <span className="font-bold border-r border-gray-700 pr-2">{tooltip.word}</span>
+          <button 
+            onClick={saveToVocab}
+            disabled={isSaving}
+            className={`${isAdded ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'} px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tighter transition-all duration-200 flex items-center gap-1`}
+          >
+            {isSaving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+            ) : isAdded ? (
+                <>Added!</>
+            ) : (
+                <>Add to Vocab</>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

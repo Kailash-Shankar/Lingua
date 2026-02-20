@@ -9,7 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, MessageSquare, PlayCircle, Eye, Clock, Loader2, 
-  RotateCcw, Lock, ArrowBigRightIcon 
+  RotateCcw, Lock, ArrowBigRightIcon, 
+  ScrollIcon,
+  Speaker,
+  SpellCheck,
+  Brain,
+  BrainIcon,
+  Cog,
+  MessageCircle
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -39,10 +46,10 @@ export default function StudentAssignmentView() {
       try {
         setLoading(true);
         const { data: assignmentData, error: aError } = await supabase
-          .from("assignments")
-          .select("*, courses(language)")
-          .eq("id", assignmentId)
-          .single();
+        .from("assignments")
+        .select(`*, courses!assignments_course_id_fkey ( language, level )`) 
+        .eq("id", assignmentId)
+        .single();
 
         if (aError) throw aError;
         setAssignment(assignmentData);
@@ -200,43 +207,103 @@ export default function StudentAssignmentView() {
       </Link>
 
       <div className="grid gap-8">
-        <div className="md:col-span-2 space-y-6">
-          {isLocked.locked && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-700 p-4 rounded-xl flex items-center gap-3 font-bold animate-in fade-in zoom-in duration-300">
-              <Lock className="h-5 w-5" />
-              <span>{isLocked.reason}</span>
-            </div>
-          )}
-          
-          <div>
-            <Badge className="mb-2 bg-blue-100 text-blue-700 border-none px-4 py-1">{assignment.topic}</Badge>
-            <h1 className="text-4xl font-bold tracking-tight mb-4">{assignment.title}</h1>
-            <p className="text-lg text-gray-600 leading-relaxed border-l-4 border-blue-600 pl-4">{assignment.scenario}</p>
-          </div>
+      <div className="md:col-span-2 space-y-8">
+  {/* Lock Status - Now with Neo-brutalist Shadow */}
+  {isLocked.locked && (
+    <div className="bg-red-50 border-2 border-black p-4 rounded-xl flex items-center gap-3 font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className="bg-red-500 p-2 rounded-lg">
+        <Lock className="h-5 w-5 text-white" />
+      </div>
+      <span className="text-red-900">{isLocked.reason}</span>
+    </div>
+  )}
+  
+  <div className="space-y-6">
+    {/* Header Section */}
+    <div>
+      <div className="inline-block px-4 py-1 bg-blue-600 text-white font-bold rounded-full text-xs uppercase tracking-widest mb-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+        {assignment.topic}
+      </div>
+      <h1 className="text-5xl font-black tracking-tight mb-6 text-black">
+        {assignment.title}
+      </h1>
+      
+      {/* Scenario - Styled as a "Quote Card" */}
+      <div className="relative bg-white border-2 border-black p-6 rounded-2xl shadow-[8px_8px_0px_0px_rgba(59,130,246,1)]">
+        <div className="absolute -top-3 -left-3 bg-blue-600 text-white p-2 rounded-lg border-2 border-black">
+          <MessageCircle size={20} />
         </div>
+        <p className="text-xl text-gray-800 font-medium leading-relaxed italic">
+          "{assignment.scenario}"
+        </p>
+      </div>
+    </div>
 
+    {/* Secondary Info Cards */}
+    <div className="grid sm:grid-cols-2 gap-4">
+      {assignment.grammar && (
+        <div className="bg-purple-50 p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(168,85,247,1)]">
+          <div className="flex items-center gap-2 mb-3 text-purple-700">
+            <Cog size={20} className="font-bold" />
+            <h2 className="text-lg font-black uppercase tracking-tight">Grammar Focus</h2>
+          </div>
+          <p className="text-gray-700 font-bold leading-snug">
+            {assignment.grammar}
+          </p>
+        </div>
+      )}
+
+      {assignment.vocabulary && (
+        <div className="bg-amber-50 p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(245,158,11,1)]">
+          <div className="flex items-center gap-2 mb-3 text-amber-700">
+            <SpellCheck size={20} />
+            <h2 className="text-lg font-black uppercase tracking-tight">Key Vocabulary</h2>
+          </div>
+          <p className="text-gray-700 font-bold leading-snug">
+            {assignment.vocabulary}
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+
+
+          
         <div className="md:col-span-2">
           <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <CardHeader>
               <CardTitle className="text-sm uppercase tracking-widest text-gray-400">
-                {submission ? "Partner Selected" : "Choose your LinguaBuddy"}
+                {submission ? "LinguaBuddy Selected" : "Choose your LinguaBuddy"}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-8">
+              <div className="mb-2">
                 <Tabs value={selectedCharacter} onValueChange={submission || isLocked.locked ? undefined : setSelectedCharacter}>
-                  <TabsList className={`grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1 bg-gray-100 ${(submission || isLocked.locked) ? 'opacity-60' : ''}`}>
+                  <TabsList className={`grid w-full grid-cols-2 lg:grid-cols-4 h-25 p-1 bg-gray-100 ${(submission || isLocked.locked) ? 'opacity-60' : ''}`}>
                     {characters.map((char, index) => (
                       <TabsTrigger key={char.character_id} value={char.character_id} disabled={!!submission || isLocked.locked}>
                         <div className="relative h-12 w-12 overflow-hidden rounded-full mb-1">
                           <img src={AVATARS[index % AVATARS.length]} alt={char.character_id} className="object-cover" />
                         </div>
-                        <span className="text-[10px] font-black uppercase">{char.character_id}</span>
+                        <span className="text-[14px] font-black uppercase">{char.character_id}</span>
                       </TabsTrigger>
                     ))}
                   </TabsList>
                 </Tabs>
               </div>
+
+                    <div className="mb-6">
+        {selectedCharacter ? (
+          <div className="flex items-start h-8 text-lg gap-4 mb-4 bg-green-50 border-l-4 border-green-200 rounded">
+          <p className="text-green-900 font-medium italic">
+            <b> &nbsp;&nbsp; {characters.find(c => c.character_id === selectedCharacter)?.character_id}: </b>{characters.find(c => c.character_id === selectedCharacter)?.public_char_desc}
+          </p>
+          </div>
+        ) : (
+          <></>
+        )}
+      </div>
               
               <div className="flex w-full items-stretch gap-0 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <Button 

@@ -40,7 +40,7 @@ export default function AssignmentResultsPage() {
       try {
         const { data: submission, error: sError } = await supabase
           .from("submissions")
-          .select(`*, assignments (topic, title, difficulty, courses (language, level))`)
+          .select(`*, assignments (topic, title, difficulty, courses!assignments_course_id_fkey ( language, level ))`)
           .eq("assignment_id", assignmentId)
           .eq("student_id", studentId)
           .single();
@@ -75,18 +75,15 @@ export default function AssignmentResultsPage() {
 
   const { submission, assignment } = data;
 
-  // Regex Cleanup for bullet points
-  const cleanPosFeedback = submission.pos_feedback
-    ?.replace(/[\[\]"]+/g, '')
-    .replace(/\.,\s*/g, '\n• ') 
-    .replace(/^/, '• ')
-    .trim();
+  const posArray = typeof submission.pos_feedback === 'string' 
+  ? JSON.parse(submission.pos_feedback || '[]') 
+  : (submission.pos_feedback || []);
 
-  const cleanNegFeedback = submission.neg_feedback
-    ?.replace(/[\[\]"]+/g, '')
-    .replace(/\.,\s*/g, '\n• ') 
-    .replace(/^/, '• ')
-    .trim();
+  const negArray = typeof submission.neg_feedback === 'string' 
+  ? JSON.parse(submission.neg_feedback || '[]') 
+  : (submission.neg_feedback || []);
+
+  
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -133,28 +130,36 @@ export default function AssignmentResultsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <StatCard 
-            icon={<CheckCircle2 className="text-green-500" />} 
-            label="Strengths" 
-            value={
-              <div className="text-sm font-semibold whitespace-pre-wrap leading-relaxed">
-                {cleanPosFeedback}
-              </div>
-            } 
-            sub="Keep doing this!"
-          />
+              <StatCard 
+                icon={<CheckCircle2 className="text-green-500" />} 
+                label="Strengths" 
+                value={
+                  <ul className="space-y-2 mt-2">
+                    {posArray.map((item, i) => (
+                      <li key={i} className="text-sm font-semibold leading-relaxed flex gap-2">
+                        <span className="text-green-500">•</span> {item}
+                      </li>
+                    ))}
+                  </ul>
+                } 
+                sub="Keep doing this!"
+              />
 
-          <StatCard
-            icon={<TrendingUp className="text-red-500" />} 
-            label="Improvements" 
-            value={
-              <div className="text-sm font-semibold whitespace-pre-wrap leading-relaxed">
-                {cleanNegFeedback}
-              </div>
-            } 
-            sub="Focus on these next"
-          />
-        </div>
+              <StatCard
+                icon={<TrendingUp className="text-red-500" />} 
+                label="Improvements" 
+                value={
+                  <ul className="space-y-2 mt-2">
+                    {negArray.map((item, i) => (
+                      <li key={i} className="text-sm font-semibold leading-relaxed flex gap-2">
+                        <span className="text-red-500">•</span> {item}
+                      </li>
+                    ))}
+                  </ul>
+                } 
+                sub="Focus on these next"
+              />
+          </div>
 
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <CardHeader className="border-b bg-gray-50/50">

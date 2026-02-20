@@ -58,7 +58,9 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
     }
 
     try {
-    const startAtUTC = new Date(startAt).toISOString();
+    const selectedStart = new Date(startAt);
+    const now = new Date();
+    const startAtUTC = selectedStart < now ? now.toISOString() : selectedStart.toISOString();
     const dueAtUTC = dueAt ? new Date(dueAt).toISOString() : null;
 
       const { error: insertError } = await supabase
@@ -158,7 +160,7 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
                 id="startAt" 
                 type="datetime-local" 
                 value={startAt}
-                min={getLocalDatetimeString()} // ✅ Earliest is current time
+                
                 onChange={(e) => setStartAt(e.target.value)}
                 required
               />
@@ -171,7 +173,7 @@ export function CreateAssignmentModal({ courseId, level, onAssignmentCreated }) 
                 id="dueAt" 
                 type="datetime-local" 
                 value={dueAt}
-                min={getLocalDatetimeString()} // ✅ Must be after start date
+                min={startAt} // ✅ Must be after start date
                 onChange={(e) => setDueAt(e.target.value)}
               />
               <p className="text-[12px] text-gray-500 italic">Leave empty for no deadline.</p>

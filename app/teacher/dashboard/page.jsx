@@ -27,21 +27,34 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchCourses = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .order("created_at", { ascending: false });
+  setLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from("courses")
+      .select(`
+        *,
+        course_enrollments!course_enrollments_course_id_fkey(count),
+        assignments!assignments_course_id_fkey(count)
+      `)
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setCourses(data || []);
-    } catch (err) {
-      console.error("Fetch error:", err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
+
+    const formattedCourses = data.map(course => ({
+      ...course,
+      // Note: When you use the !name syntax, the property name in the 
+      // result might change to match that name.
+      studentCount: course.course_enrollments?.[0]?.count || 0,
+      chatCount: course.assignments?.[0]?.count || 0
+    }));
+
+    setCourses(formattedCourses || []);
+  } catch (err) {
+    console.error("Fetch error:", err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchCourses();
@@ -60,8 +73,6 @@ const TeacherDashboard = () => {
         <h1 className="text-3xl font-bold font-heading">My Courses</h1>
         <CreateCourseModal onCourseCreated={fetchCourses} />
       </div>
-
-      
 
       {/* Courses Grid */}
       {courses.length > 0 ? (
@@ -88,11 +99,11 @@ const TeacherDashboard = () => {
                 <div className="flex items-center gap-4 text-sm text-gray-500">
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    <span>0 Students</span>
+                    <span>{course.studentCount} {course.studentCount === 1 ? "Student" : "Students"}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <BookOpen className="h-4 w-4" />
-                    <span>0 Chats</span>
+                    <span>{course.chatCount} {course.chatCount === 1 ? "Chat" : "Chats"}</span>
                   </div>
                 </div>
               </CardContent>

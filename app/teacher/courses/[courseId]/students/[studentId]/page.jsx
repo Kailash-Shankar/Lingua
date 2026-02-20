@@ -26,7 +26,11 @@ import {
   Circle,
   UserCircle,
   AlertCircle,
-  CalendarDays
+  CalendarDays,
+  BrainCircuit,
+  Loader2,
+  Scroll,
+  BarChart
 } from "lucide-react";
 
 export default function TeacherStudentProgressPage() {
@@ -37,6 +41,9 @@ export default function TeacherStudentProgressPage() {
   const [loading, setLoading] = useState(true);
   const [allStats, setAllStats] = useState([]);
   
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiOverview, setAiOverview] = useState(null);
+
   const [feedbackModal, setFeedbackModal] = useState({ 
     isOpen: false, title: "", items: [], type: "" 
   });
@@ -44,12 +51,17 @@ export default function TeacherStudentProgressPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data: enrollment } = await supabase
+        .from("course_enrollments")
         .select("*")
-        .eq("id", studentId)
+        .eq("student_id", studentId)
+        .eq("course_id", courseId)
         .single();
-      setStudent(profile);
+      
+      setStudent(enrollment);
+      if (enrollment?.skill_overview) {
+        setAiOverview(enrollment.skill_overview);
+      }
 
       const { data: courseData } = await supabase
         .from("courses")
@@ -70,23 +82,14 @@ export default function TeacherStudentProgressPage() {
         .eq("student_id", studentId);
 
       const now = new Date();
-
       const combined = assignments.map(a => {
         const sub = submissions?.find(s => s.assignment_id === a.id && s.status === 'completed');
-        
-        // Status Logic
         let statusLabel = "pending";
         const dueDate = a.due_at ? new Date(a.due_at) : null;
         const startDate = a.start_at ? new Date(a.start_at) : null;
-
-        if (sub) {
-          statusLabel = "completed";
-        } else if (startDate && now < startDate) {
-          statusLabel = "future";
-        } else if (dueDate && now > dueDate) {
-          statusLabel = "overdue";
-        }
-
+        if (sub) statusLabel = "completed";
+        else if (startDate && now < startDate) statusLabel = "future";
+        else if (dueDate && now > dueDate) statusLabel = "overdue";
         return { ...a, submission: sub || null, statusLabel };
       });
 
@@ -102,6 +105,61 @@ export default function TeacherStudentProgressPage() {
     if (courseId && studentId) fetchData();
   }, [courseId, studentId]);
 
+  const formatGeneratedDate = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    return date.toLocaleString([], { 
+      dateStyle: 'short', 
+      timeStyle: 'short' 
+    });
+  };
+
+  const handleGenerateSkillOverview = async () => {
+    setIsGeneratingAi(true);
+    try {
+      const allFeedback = allStats
+        .filter(item => item.submission)
+        .map(item => ({
+          title: item.title,
+          strengths: item.submission.pos_feedback,
+          weaknesses: item.submission.neg_feedback
+        }));
+
+      if (allFeedback.length === 0) {
+        alert("No completed assignments to analyze.");
+        return;
+      }
+
+      const response = await fetch("/api/student-overview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: allFeedback })
+      });
+
+      const data = await response.json();
+
+      const overviewWithTimestamp = {
+        ...data,
+        generated_at: new Date().toISOString()
+      };
+
+      setAiOverview(overviewWithTimestamp);
+      
+      const { error } = await supabase
+        .from("course_enrollments")
+        .update({ skill_overview: overviewWithTimestamp })
+        .eq("student_id", studentId)
+        .eq("course_id", courseId);
+
+      if (error) throw error;
+
+    } catch (err) {
+      console.error("AI Error:", err);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
   const openFeedback = (e, type, rawData, title) => {
     e.preventDefault();
     let cleanedItems = [];
@@ -116,7 +174,9 @@ export default function TeacherStudentProgressPage() {
     setFeedbackModal({ isOpen: true, title, type, items: cleanedItems });
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center animate-pulse">Loading Student Data...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center animate-pulse text-gray-400">Loading Student Data...</div>;
+
+  const hasNoSubmissions = !allStats || allStats.every(item => !item.submission || item.submission.status !== 'completed');
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -148,15 +208,98 @@ export default function TeacherStudentProgressPage() {
             <UserCircle className="h-10 w-10 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">{student?.first_name} {student?.last_name}</h1>
-            <p className="text-gray-500 text-lg">Student ID: {student?.student_id} • {course?.title}</p>
+            <h1 className="text-4xl font-bold tracking-tight">{student?.First_Name} {student?.Last_Name}</h1>
+            <p className="text-gray-500 text-lg">Student ID: {student?.Student_id || "No ID"} • {course?.title}</p>
           </div>
         </div>
       </div>
 
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+            <Scroll className="h-5 w-5 text-purple-500" /> Student Skills Overview
+          </h2>
+          <p className="text-sm text-gray-500 font-medium">Aggregated AI insights for this student</p>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          {aiOverview?.generated_at && (
+            <div className="flex items-center gap-1">
+              <Clock size={14} className="text-gray-400"/>
+              <span className="text-lg font-semibold text-gray-500 tracking-tighter">
+                Last generated: {formatGeneratedDate(aiOverview.generated_at)}
+              </span>
+            </div>
+          )}
+          <Button 
+            onClick={handleGenerateSkillOverview}
+            disabled={isGeneratingAi || hasNoSubmissions}
+            className={`
+              h-15 w-80 border-2 font-bold transition-all gap-2
+              ${hasNoSubmissions 
+                ? "!bg-gray-200 !text-gray-400 !border-gray-300 !shadow-none !cursor-not-allowed !pointer-events-none opacity-100" 
+                : "bg-purple-600 hover:bg-purple-700 text-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              }
+            `}
+          >
+            {isGeneratingAi ? <Loader2 className="h-6 w-6 animate-spin" /> : <Zap className="h-6 w-6" />}
+            <span className="text-lg">
+              {hasNoSubmissions ? "No Assignments Submitted" : (aiOverview ? "Regenerate Overview" : "Generate Skill Overview")}
+            </span>
+          </Button>
+        </div>
+      </div>
+
+      {aiOverview ? (
+        <div className="grid md:grid-cols-2 gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+          <Card className="border-2 border-black bg-yellow-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <CardContent className="p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-yellow-700">
+                <Sparkles className="h-5 w-5" /> Course-Wide Strengths
+              </h3>
+              <div className="space-y-3">
+                {aiOverview.strengths?.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="bg-white/50 border border-yellow-200 p-3 rounded-lg font-medium text-gray-700">
+                    • {item}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-black bg-pink-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <CardContent className="p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-pink-700">
+                <TrendingUp className="h-5 w-5" /> Overall Growth Areas
+              </h3>
+              <div className="space-y-3">
+                {aiOverview.weaknesses?.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="bg-white/50 border border-pink-200 p-3 rounded-lg font-medium text-gray-700">
+                    • {item}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <Card className="border-dashed py-20 mb-12 flex flex-col items-center justify-center text-center bg-gray-50/50">
+          <BarChart className="h-12 w-12 text-gray-300 mb-4" />
+          <p className="text-gray-500 font-medium">No skill overview generated yet.</p>
+          <p className="text-xs text-gray-400 max-w-sm mt-1">
+            {hasNoSubmissions 
+              ? "This student hasn't completed any assignments in this course yet." 
+              : "Click the button above to analyze this student's performance across all assignments."}
+          </p>
+        </Card>
+      )}
+
       <div className="space-y-6">
         <h3 className="text-xl font-bold flex items-center gap-2">
           <Clock className="h-5 w-5" /> Assignment Timeline
+          <div className="ml-6 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-600">
+            {allStats.filter(a => a.submission).length} / {allStats.length} Assignments Completed
+          </div>
         </h3>
         
         <div className="grid gap-6">
