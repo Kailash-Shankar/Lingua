@@ -116,8 +116,8 @@ export async function POST(req) {
         ${isLastMessage 
     ? "THE CONVERSATION IS OVER. Wrap up and say goodbye. Do NOT ask a follow-up question." 
     : ""}
-`;
-      `.trim();
+`
+      .trim();
 
 
     // Old system prompt
