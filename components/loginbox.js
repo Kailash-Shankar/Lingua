@@ -3,7 +3,7 @@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { Key, Mail, GraduationCap, BookOpen, User, Fingerprint, Code, Lock, Hash } from "lucide-react";
+import { Mail, GraduationCap, BookOpen, User, Lock, Hash } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signup, login } from "@/actions/auth"; 
@@ -16,9 +16,14 @@ export function Loginbox({ isSignup = true }) {
   const message = searchParams.get("message");
 
   return (
-    <form className="flex flex-col gap-4 w-full max-w-md p-8 border rounded-lg shadow-sm bg-white">
-      <h1 className="text-4xl font-heading font-bold text-center text-blue-500">
-        Lingua {isSignup ? "Sign Up" : "Login"}
+    /* Updated container: Neo-Brutalist shadow and border, kept padding/gap same */
+    <form className="flex flex-col gap-4 w-full max-w-md p-8 border-2 border-[#2D2D2D] rounded-lg shadow-[8px_8px_0px_0px_#2D2D2D] bg-white">
+      
+      {/* Updated Title: Bold Neo-Brutalist style */}
+      <h1 className="text-4xl font-black uppercase tracking-tighter text-center text-[#2D2D2D]">
+        Lingua <span className={isSignup ? "text-blue-500" : "text-[#FF914D]"}>
+          {isSignup ? "Sign Up" : "Login"}
+        </span>
       </h1>
 
       {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200 text-center">{error}</p>}
@@ -46,8 +51,8 @@ export function Loginbox({ isSignup = true }) {
         </div>
       )}
 
+      {/* Inputs: Completely untouched from your original version */}
       <div className="space-y-4">
-        {/* Email and Password are always required */}
         <InputGroup>
           <InputGroupInput className="text-black" name="email" type="email" placeholder="Email address" required />
           <InputGroupAddon><Mail className="h-4 w-4 text-gray-500" /></InputGroupAddon>
@@ -58,10 +63,8 @@ export function Loginbox({ isSignup = true }) {
           <InputGroupAddon><Lock className="h-4 w-4 text-gray-500" /></InputGroupAddon>
         </InputGroup>
 
-        {/* Signup Specific Fields */}
         {isSignup && (
           <>
-            {/* Split row for Names */}
             <div className="flex gap-4">
               <InputGroup>
                 <InputGroupInput className="text-black" name="firstname" type="text" placeholder="First Name" required />
@@ -72,7 +75,6 @@ export function Loginbox({ isSignup = true }) {
               </InputGroup>
             </div>
 
-            {/* Student ID only if role is student */}
             {role === "student" && (
               <InputGroup>
                 <InputGroupInput className="text-black" name="student_id_number" type="text" placeholder="Student ID Number" required />
@@ -83,7 +85,8 @@ export function Loginbox({ isSignup = true }) {
         )}
       </div>
 
-      <div className="mt-4">
+      {/* Submit Button: Added a simple wrapper for the "press" effect */}
+      <div className="mt-4 active:translate-x-[2px] active:translate-y-[2px] transition-all">
         <SubmitButton 
           text={isSignup ? `Create ${role.charAt(0).toUpperCase() + role.slice(1)} Account` : "Log In"}
           signup={isSignup}

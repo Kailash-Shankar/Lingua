@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { LogOut, LayoutDashboard } from "lucide-react";
+import { LogOut, LayoutDashboard, Languages } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -13,20 +12,26 @@ const Header = () => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
- useEffect(() => {
-  // Get initial session
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setUser(session?.user ?? null);
-    setLoading(false);
-  });
+  useEffect(() => {
+    // 1. Initial Session Check
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
 
-  // Listen for auth changes
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    setUser(session?.user ?? null);
-  });
+    checkSession();
 
-  return () => subscription?.unsubscribe();
-}, []);
+    // 2. Auth State Listener (Improved for immediate UI updates)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        router.refresh(); // Forces Next.js to re-sync server components
+      }
+    });
+
+    return () => subscription?.unsubscribe();
+  }, [router]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -35,29 +40,28 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 w-full border-b bg-orange/90 backdrop-blur-md z-50">
-      <nav className="relative container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/">
-          <Image
-            src="/lingualogo.png"
-            alt="Website Logo"
-            width={300}
-            height={50}
-            className="h-12 py-1 w-auto object-contain"
-            loading="eager"
-          />
+    <header className="fixed top-0 w-full border-b-2 border-[#2D2D2D] bg-orange/90 backdrop-blur-md z-50">
+      <nav className="container mx-auto px-6 h-20 flex items-center justify-between">
+        
+        {/* Soft Neo-Brutalist Logo Replacement */}
+        <Link href="/" className="group flex items-center gap-2">
+          <div className="bg-[#74C0FC] border-2 border-[#2D2D2D] p-2 rounded-xl shadow-[3px_3px_0px_0px_#2D2D2D] group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all">
+            <Languages className="h-6 w-6 text-[#2D2D2D]" />
+          </div>
+          <span className="text-4xl font-black tracking-wide text-[#2D2D2D] uppercase
+  [text-shadow:4px_4px_0px_#FFD966] 
+  hover:translate-x-[1px] hover:translate-y-[1px] hover:[text-shadow:2px_2px_0px_#FFD966]
+  transition-all duration-200 cursor-default">
+  Lingua
+</span>
         </Link>
 
-        <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl font-bold md:text-3xl gradient-title pointer-events-none">
-          Lingua
-        </h1>
-
-        <div className="flex items-center space-x-2 md:space-x-4">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
           {!loading && (
             <>
               {user ? (
                 <>
-                
                   <Link 
                     href={
                       user.user_metadata?.user_role === 'teacher' 
@@ -65,28 +69,41 @@ const Header = () => {
                         : `/student/${user.id}/dashboard`
                     }
                   >
-                    <Button variant="secondary" className="flex items-center gap-2">
+                    <Button 
+                      variant="outline"
+                      className="rounded-2xl border-2 border-[#2D2D2D] bg-[#E6F4F1] font-bold shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center gap-2"
+                    >
                       <LayoutDashboard className="h-4 w-4" />
                       <span className="hidden md:inline">Dashboard</span>
                     </Button>
                   </Link>
 
                   <Button 
+                    variant="outline"
                     onClick={handleSignOut} 
-                    variant="primary" 
-                    className="bg-red-600 text-white hover:bg-red-800"
+                    className="rounded-2xl border-2 border-[#2D2D2D] bg-red-500 text-black font-bold shadow-[4px_4px_0px_0px_#2D2D2D] hover:bg-red-500 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center gap-2"
                   >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
+                    <LogOut className="h-4 w-4" />
+                    <span className="hidden md:inline">Sign Out</span>
                   </Button>
                 </>
               ) : (
                 <>
-                  <Link href="/signup">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">Sign Up</Button>
-                  </Link>
                   <Link href="/login">
-                    <Button className="bg-black hover:bg-gray-800 text-white">Log In</Button>
+                    <Button 
+                      variant="outline"
+                      className="rounded-2xl border-2 border-[#2D2D2D] bg-gray-300 hover:bg-gray-300 text-[#2D2D2D] font-bold shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all px-6"
+                    >
+                      Log In
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button 
+                        variant="outline"
+                      className="rounded-2xl border-2 border-[#2D2D2D] bg-blue-400 hover:bg-blue-400 text-[#2D2D2D] font-bold shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all px-6"
+                    >
+                      Sign Up
+                    </Button>
                   </Link>
                 </>
               )}

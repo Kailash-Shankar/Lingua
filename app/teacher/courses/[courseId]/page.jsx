@@ -184,7 +184,7 @@ export default function CourseDetailPage() {
     <div className="p-8 max-w-7xl mx-auto">
       <Link href="/teacher/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors mb-6 w-fit group">
         <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-sm font-medium">Back to Dashboard</span>
+        <span className="text-md uppercase tracking-widest font-black">Back to Dashboard</span>
       </Link>
 
       <div className="flex justify-between items-end mb-8 border-b pb-6">

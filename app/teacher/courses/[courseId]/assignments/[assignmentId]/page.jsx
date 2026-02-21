@@ -210,7 +210,7 @@
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6">
           <div className="space-y-2">
-            <Button variant="ghost" onClick={() => router.back()} className="gap-2 -ml-2 text-gray-600 mb-2">
+            <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-black mb-8 w-fit text-md uppercase tracking-widest font-black">
               <ArrowLeft size={16}/> Back to Course
             </Button>
             <div className="flex items-center gap-3">

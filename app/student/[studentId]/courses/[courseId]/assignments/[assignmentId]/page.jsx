@@ -10,11 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, MessageSquare, PlayCircle, Eye, Clock, Loader2, 
   RotateCcw, Lock, ArrowBigRightIcon, 
-  ScrollIcon,
-  Speaker,
   SpellCheck,
-  Brain,
-  BrainIcon,
   Cog,
   MessageCircle
 } from "lucide-react";
@@ -54,9 +50,7 @@ export default function StudentAssignmentView() {
         if (aError) throw aError;
         setAssignment(assignmentData);
 
-        // --- IMPROVED LOCK LOGIC ---
         const now = new Date().getTime();
-        // Check for common column name variations
         const startRaw = assignmentData.start_at;
         const dueRaw = assignmentData.due_at;
         
@@ -76,7 +70,6 @@ export default function StudentAssignmentView() {
         } else {
           setIsLocked({ locked: false, reason: "" });
         }
-        // ---------------------------
 
         const { data: submissionData } = await supabase
           .from("submissions")
@@ -116,7 +109,6 @@ export default function StudentAssignmentView() {
   }, [selectedCharacter, characters]);
 
   const getButtonConfig = () => {
-    // Priority 1: Lock overrides everything except a completed result view
     if (isLocked.locked && submission?.status !== "completed") {
       return {
         text: isLocked.reason === "This assignment is now closed." ? "Assignment Closed" : "Assignment Locked",
@@ -158,7 +150,7 @@ export default function StudentAssignmentView() {
     if (!selectedCharacter || starting || isLocked.locked) return;
     setStarting(true);
     try {
-      const { data, error } = await supabase
+      await supabase
         .from('submissions')
         .upsert({
           student_id: studentId,
@@ -166,13 +158,10 @@ export default function StudentAssignmentView() {
           character_id: selectedCharacter,
           status: 'in_progress',
           chat_history: []
-        }, { onConflict: 'student_id, assignment_id' })
-        .select().single();
+        }, { onConflict: 'student_id, assignment_id' });
 
-      if (error) throw error;
       router.push(`/student/${studentId}/courses/${courseId}/assignments/${assignmentId}/chat?v=${avatarPath}`);
     } catch (err) {
-      console.error("Failed to start:", err.message);
       setStarting(false);
     }
   };
@@ -181,15 +170,14 @@ export default function StudentAssignmentView() {
     if (!submission || resetting || isLocked.locked) return;
     setResetting(true);
     try {
-      const { error } = await supabase
+      await supabase
         .from('submissions')
         .update({ status: 'not_started', chat_history: [], current_exchange_count: 0 })
         .eq("id", submission.id);
-      if (error) throw error;
       setSubmission(null);
       setSelectedCharacter("");
     } catch (err) {
-      console.error("Failed to reset:", err.message);
+      console.error(err);
     } finally {
       setResetting(false);
     }
@@ -202,115 +190,109 @@ export default function StudentAssignmentView() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto mt-12">
-      <Link href={`/student/${studentId}/courses/${courseId}`} className="flex items-center gap-2 text-gray-500 hover:text-black mb-8 w-fit">
-        <ArrowLeft className="h-4 w-4" /> Back to Course
+      <Link href={`/student/${studentId}/courses/${courseId}`} className="flex items-center gap-2 text-gray-500 hover:text-black mb-8 w-fit text-md uppercase tracking-widest font-black">
+        <ArrowLeft className="h-5 w-5" /> Back to Course
       </Link>
 
       <div className="grid gap-8">
-      <div className="md:col-span-2 space-y-8">
-  {/* Lock Status - Now with Neo-brutalist Shadow */}
-  {isLocked.locked && (
-    <div className="bg-red-50 border-2 border-black p-4 rounded-xl flex items-center gap-3 font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="bg-red-500 p-2 rounded-lg">
-        <Lock className="h-5 w-5 text-white" />
-      </div>
-      <span className="text-red-900">{isLocked.reason}</span>
-    </div>
-  )}
-  
-  <div className="space-y-6">
-    {/* Header Section */}
-    <div>
-      <div className="inline-block px-4 py-1 bg-blue-600 text-white font-bold rounded-full text-xs uppercase tracking-widest mb-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-        {assignment.topic}
-      </div>
-      <h1 className="text-5xl font-black tracking-tight mb-6 text-black">
-        {assignment.title}
-      </h1>
-      
-      {/* Scenario - Styled as a "Quote Card" */}
-      <div className="relative bg-white border-2 border-black p-6 rounded-2xl shadow-[8px_8px_0px_0px_rgba(59,130,246,1)]">
-        <div className="absolute -top-3 -left-3 bg-blue-600 text-white p-2 rounded-lg border-2 border-black">
-          <MessageCircle size={20} />
-        </div>
-        <p className="text-xl text-gray-800 font-medium leading-relaxed italic">
-          "{assignment.scenario}"
-        </p>
-      </div>
-    </div>
-
-    {/* Secondary Info Cards */}
-    <div className="grid sm:grid-cols-2 gap-4">
-      {assignment.grammar && (
-        <div className="bg-purple-50 p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(168,85,247,1)]">
-          <div className="flex items-center gap-2 mb-3 text-purple-700">
-            <Cog size={20} className="font-bold" />
-            <h2 className="text-lg font-black uppercase tracking-tight">Grammar Focus</h2>
-          </div>
-          <p className="text-gray-700 font-bold leading-snug">
-            {assignment.grammar}
-          </p>
-        </div>
-      )}
-
-      {assignment.vocabulary && (
-        <div className="bg-amber-50 p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(245,158,11,1)]">
-          <div className="flex items-center gap-2 mb-3 text-amber-700">
-            <SpellCheck size={20} />
-            <h2 className="text-lg font-black uppercase tracking-tight">Key Vocabulary</h2>
-          </div>
-          <p className="text-gray-700 font-bold leading-snug">
-            {assignment.vocabulary}
-          </p>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
-
-
+        <div className="md:col-span-2 space-y-8">
+          {isLocked.locked && (
+            <div className="bg-red-50 border-2 border-black p-4 rounded-xl flex items-center gap-3 font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="bg-red-500 p-2 rounded-lg">
+                <Lock className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-red-900">{isLocked.reason}</span>
+            </div>
+          )}
           
+          <div className="space-y-6">
+            <div>
+              <div className="inline-block px-4 py-1 bg-blue-600 text-white font-bold rounded-full text-xs uppercase tracking-widest mb-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                {assignment.topic}
+              </div>
+              <h1 className="text-5xl font-black tracking-tight mb-6 text-black">
+                {assignment.title}
+              </h1>
+              
+              <div className="relative bg-white border-2 border-black p-6 rounded-2xl shadow-[8px_8px_0px_0px_rgba(59,130,246,1)]">
+                <div className="absolute -top-3 -left-3 bg-blue-600 text-white p-2 rounded-lg border-2 border-black">
+                  <MessageCircle size={20} />
+                </div>
+                <p className="text-xl text-gray-800 font-medium leading-relaxed italic">
+                  "{assignment.scenario}"
+                </p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {assignment.grammar && (
+                <div className="bg-purple-50 p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(168,85,247,1)]">
+                  <div className="flex items-center gap-2 mb-3 text-purple-700">
+                    <Cog size={20} />
+                    <h2 className="text-lg font-black uppercase tracking-tight">Grammar Focus</h2>
+                  </div>
+                  <p className="text-gray-700 font-bold leading-snug">{assignment.grammar}</p>
+                </div>
+              )}
+
+              {assignment.vocabulary && (
+                <div className="bg-amber-50 p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(245,158,11,1)]">
+                  <div className="flex items-center gap-2 mb-3 text-amber-700">
+                    <SpellCheck size={20} />
+                    <h2 className="text-lg font-black uppercase tracking-tight">Key Vocabulary</h2>
+                  </div>
+                  <p className="text-gray-700 font-bold leading-snug">{assignment.vocabulary}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="md:col-span-2">
-          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-2xl overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-sm uppercase tracking-widest text-gray-400">
+              <CardTitle className="text-lg font-black uppercase tracking-widest opacity-70 text-left">
                 {submission ? "LinguaBuddy Selected" : "Choose your LinguaBuddy"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="mb-2">
                 <Tabs value={selectedCharacter} onValueChange={submission || isLocked.locked ? undefined : setSelectedCharacter}>
-                  <TabsList className={`grid w-full grid-cols-2 lg:grid-cols-4 h-25 p-1 bg-gray-100 ${(submission || isLocked.locked) ? 'opacity-60' : ''}`}>
+                  <TabsList className={`grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-2 bg-gray-100 border-2 border-black rounded-xl gap-2 ${(submission || isLocked.locked) ? 'opacity-100' : ''}`}>
                     {characters.map((char, index) => (
-                      <TabsTrigger key={char.character_id} value={char.character_id} disabled={!!submission || isLocked.locked}>
-                        <div className="relative h-12 w-12 overflow-hidden rounded-full mb-1">
-                          <img src={AVATARS[index % AVATARS.length]} alt={char.character_id} className="object-cover" />
+                      <TabsTrigger 
+                        key={char.character_id} 
+                        value={char.character_id} 
+                        disabled={!!submission || isLocked.locked}
+                        className="flex flex-col gap-2 p-3 rounded-xl transition-all data-[state=active]:bg-white data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[3px_3px_0px_0px_#FFD966]"
+                      >
+                        <div className="relative h-12 w-12 overflow-hidden rounded-full border border-black/10">
+                          <img src={AVATARS[index % AVATARS.length]} alt={char.character_id} className="object-cover h-full w-full" />
                         </div>
-                        <span className="text-[14px] font-black uppercase">{char.character_id}</span>
+                        <span className="text-[12px] font-black uppercase tracking-tighter">{char.character_id}</span>
                       </TabsTrigger>
                     ))}
                   </TabsList>
                 </Tabs>
               </div>
 
-                    <div className="mb-6">
-        {selectedCharacter ? (
-          <div className="flex items-start h-8 text-lg gap-4 mb-4 bg-green-50 border-l-4 border-green-200 rounded">
-          <p className="text-green-900 font-medium italic">
-            <b> &nbsp;&nbsp; {characters.find(c => c.character_id === selectedCharacter)?.character_id}: </b>{characters.find(c => c.character_id === selectedCharacter)?.public_char_desc}
-          </p>
-          </div>
-        ) : (
-          <></>
-        )}
-      </div>
+              <div className="mb-6 mt-4 min-h-[80px]">
+                {selectedCharacter && (
+                  <div className="p-5 bg-gray-50 border-2 border-black rounded-2xl shadow-[inset_3px_3px_0px_0px_rgba(0,0,0,0.05)] animate-in fade-in duration-200">
+                    <p className="text-sm font-bold leading-relaxed italic opacity-80">
+                      <span className="uppercase tracking-widest text-black not-italic mr-2 font-black">{selectedCharacter}:</span>
+                      {characters.find(c => c.character_id === selectedCharacter)?.public_char_desc}
+                    </p>
+                  </div>
+                )}
+              </div>
               
               <div className="flex w-full items-stretch gap-0 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <Button 
                   onClick={config.action} 
                   variant={config.variant} 
                   disabled={config.disabled}
-                  className="flex-1 h-14 text-md font-bold rounded-none"
+                  className="flex-1 h-14 text-sm font-black uppercase tracking-widest rounded-none"
                 >
                   {config.text}
                   {config.icon}
@@ -321,23 +303,23 @@ export default function StudentAssignmentView() {
                     <div className="w-[2px] bg-black opacity-20" />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" className="w-21 h-14 bg-red-100 text-red-500 rounded-none border-none">
+                        <Button variant="ghost" className="w-20 h-14 bg-red-100 text-red-500 rounded-none border-none hover:bg-red-200 transition-colors">
                           <RotateCcw className="h-5 w-5" />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                      <AlertDialogContent className="border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-3xl">
                         <AlertDialogHeader>
                           <AlertDialogTitle className="text-2xl font-black uppercase italic flex items-center gap-2">
                             <RotateCcw className="h-6 w-6 text-red-500" />
                             Start Over?
                           </AlertDialogTitle>
-                          <AlertDialogDescription className="text-gray-600 text-base">
-                            This will delete your current conversation.
+                          <AlertDialogDescription className="text-black font-bold text-base opacity-70">
+                            This will delete your current conversation. You cannot undo this action.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="border-2 border-black font-bold">Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRestartAssignment} className="bg-red-500 hover:bg-red-600 text-white font-bold border-2 border-black">Reset</AlertDialogAction>
+                        <AlertDialogFooter className="gap-3">
+                          <AlertDialogCancel className="border-2 border-black font-black uppercase text-xs rounded-xl">Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleRestartAssignment} className="bg-red-500 hover:bg-red-600 text-white font-black uppercase text-xs border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all">Reset</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -345,13 +327,13 @@ export default function StudentAssignmentView() {
                 )}
               </div>
             </CardContent>
-            <CardFooter className="bg-gray-50 flex items-center justify-between py-4 px-6">
-               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Clock className="h-3 w-3" />
+            <CardFooter className="bg-gray-50 border-t-2 border-black flex items-center justify-between py-4 px-6">
+               <div className="flex items-center gap-2 text-[10px] font-black uppercase opacity-40">
+                <Clock className="h-3.5 w-3.5" />
                 <span>Starts: {assignment.start_at ? new Date(assignment.start_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
                </div>
-               <div className="flex items-center gap-2 text-sm text-red-600 font-medium">
-                <Clock className="h-3 w-3" />
+               <div className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500">
+                <Clock className="h-3.5 w-3.5" />
                 <span>Due: {assignment.due_at ? new Date(assignment.due_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
                </div>
             </CardFooter>
