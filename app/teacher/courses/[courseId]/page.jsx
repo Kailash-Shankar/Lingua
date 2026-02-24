@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch"; // Ensure this is in your components
 import { CreateAssignmentModal } from "@/components/CreateAssignmentModal";
 import { AssignmentsList } from "@/components/AssignmentsList";
 import { 
@@ -18,14 +19,20 @@ import {
   Check, 
   ArrowLeft,
   UserCircle,
-  Mail,
   ChevronRight,
-  Hash,
   Sparkles,
   TrendingUp,
-  Clock,
   Loader2,
-  Scroll
+  Settings,
+  Edit3,
+  Trash2,
+  Globe,
+  Newspaper,
+  BarChartHorizontal,
+  BarChartBigIcon,
+  BarChartBig,
+  Pin,
+  MapPin
 } from "lucide-react";
 
 export default function CourseDetailPage() {
@@ -40,20 +47,13 @@ export default function CourseDetailPage() {
   
   const [assignmentCount, setAssignmentCount] = useState(0);
   const [studentCount, setStudentCount] = useState(0);
-  const [totalSubmissions, setTotalSubmissions] = useState(0); // Track total submissions
+  const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [students, setStudents] = useState([]); 
   const [assignments, setAssignments] = useState([]);
 
-  // AI Analytics State
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [courseAiOverview, setCourseAiOverview] = useState(null);
-
-  const handleTabChange = (value) => {
-    setActiveTab(value);
-    const params = new URLSearchParams(window.location.search);
-    params.set("tab", value);
-    window.history.replaceState(null, "", `?${params.toString()}`);
-  };
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -71,48 +71,44 @@ export default function CourseDetailPage() {
         setCourseAiOverview(courseData.course_overview);
       }
 
-      const { data: assignmentsData, error: aError } = await supabase
+      const { data: assignmentsData } = await supabase
         .from("assignments")
-        .select("*") // Change this from "id, title, created_at" to "*"
+        .select("*")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false });
 
-      if (!aError && assignmentsData) {
+      if (assignmentsData) {
         setAssignments(assignmentsData);
         setAssignmentCount(assignmentsData.length);
-
-        // Fetch submission count for these assignments
         const assignmentIds = assignmentsData.map(a => a.id);
         if (assignmentIds.length > 0) {
-          const { count, error: subCountError } = await supabase
+          const { count } = await supabase
             .from("submissions")
             .select("*", { count: 'exact', head: true })
             .in("assignment_id", assignmentIds)
             .eq("status", "completed");
-          
-          if (!subCountError) setTotalSubmissions(count || 0);
+          setTotalSubmissions(count || 0);
         }
       }
 
-      const { data: enrollmentData, error: sError } = await supabase
+      const { data: enrollmentData } = await supabase
         .from("course_enrollments")
         .select(`enrolled_at, First_Name, Last_Name, Student_id, student_id`)
         .eq("course_id", courseId);
 
-      if (!sError && enrollmentData) {
+      if (enrollmentData) {
         const studentList = enrollmentData.map(e => ({
-          id: e.Student_id,
+          id: e.Student_id || "No ID",
           firstname: e.First_Name,
           lastname: e.Last_Name,
           enrolled_at: e.enrolled_at,
-          realid: e.student_id
+          realid: e.student_id 
         }));
         setStudents(studentList);
         setStudentCount(studentList.length);
       }
-
     } catch (err) {
-      console.error("Error fetching course data:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -122,24 +118,42 @@ export default function CourseDetailPage() {
     if (courseId) fetchCourseData();
   }, [courseId]);
 
+  const handleToggleRegionSpecific = async (checked) => {
+    setIsUpdatingSettings(true);
+    try {
+      const { error } = await supabase
+        .from("courses")
+        .update({ use_region_specific: checked })
+        .eq("id", courseId);
+      
+      if (error) throw error;
+      setCourse({ ...course, use_region_specific: checked });
+    } catch (err) {
+      console.error("Update failed:", err);
+    } finally {
+      setIsUpdatingSettings(false);
+    }
+  };
+
+  const handleTabChange = (value) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", value);
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  };
+
   const handleGenerateCourseOverview = async () => {
     if (totalSubmissions === 0) return;
     setIsGeneratingAi(true);
     try {
       const assignmentIds = assignments.map(a => a.id);
-      const { data: allSubmissions, error: subError } = await supabase
+      const { data: allSubmissions } = await supabase
         .from("submissions")
         .select("pos_feedback, neg_feedback")
         .in("assignment_id", assignmentIds)
         .eq("status", "completed");
 
-      if (subError) throw subError;
-
-      const feedbackData = allSubmissions.map(s => ({
-        pos: s.pos_feedback,
-        neg: s.neg_feedback
-      }));
-
+      const feedbackData = allSubmissions.map(s => ({ pos: s.pos_feedback, neg: s.neg_feedback }));
       const response = await fetch("/api/assignment-overview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,15 +170,10 @@ export default function CourseDetailPage() {
       await supabase.from("courses").update({ course_overview: newOverview }).eq("id", courseId);
       setCourseAiOverview(newOverview);
     } catch (err) {
-      console.error("Generation Error:", err);
+      console.error(err);
     } finally {
       setIsGeneratingAi(false);
     }
-  };
-
-  const formatGeneratedDate = (iso) => {
-    if (!iso) return "";
-    return new Date(iso).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
   };
 
   const handleCopy = async () => {
@@ -175,158 +184,213 @@ export default function CourseDetailPage() {
     }
   };
 
-  const hasNoData = totalSubmissions === 0;
-
-  if (loading) return <div className="p-10 text-center text-gray-500 animate-pulse">Loading course details...</div>;
-  if (!course) return <div className="p-10 text-center text-red-500">Course not found.</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-[#FEFAF2]"><Loader2 className="animate-spin h-10 w-10 text-[#2D2D2D]" /></div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <Link href="/teacher/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors mb-6 w-fit group">
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-md uppercase tracking-widest font-black">Back to Dashboard</span>
-      </Link>
+    <div className="min-h-screen bg-[#FEFAF2] p-8 pt-24 text-[#2D2D2D]">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Navigation */}
+        <Link href="/teacher/dashboard" className="inline-flex items-center gap-2 font-bold text-[#2D2D2D]/60 hover:text-[#2D2D2D] transition-colors group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-[11px] uppercase tracking-widest font-black">Back to Dashboard</span>
+        </Link>
 
-      <div className="flex justify-between items-end mb-8 border-b pb-6">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">{course.title}</h1>
-          <p className="text-gray-500 mt-2 text-lg">{course.language} • {course.level}</p>
-        </div>
-        <div className="text-right flex flex-col items-end">
-          <p className="text-md font-bold uppercase tracking-widest text-gray-800 mb-1">Student Join Code</p>
-          <div onClick={handleCopy} className="flex justify-center items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity group">
-            <p className="text-4xl font-mono font-bold text-blue-600 tracking-tighter">{course.course_code || "------"}</p>
-            {course.course_code && (copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5 text-gray-400 group-hover:text-blue-600" />)}
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-4 border-[#2D2D2D] pb-8">
+          <div className="space-y-4">
+            <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tighter [text-shadow:3px_3px_0px_#FFD966] leading-none">
+              {course.title}
+            </h1>
+            <div className="flex items-center gap-3">
+               <span className="px-4 py-1.5 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-full text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_#2D2D2D]">
+                 {course.language}
+               </span>
+               <span className="px-4 py-1.5 bg-white border-2 border-[#2D2D2D] rounded-full text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_#2D2D2D]">
+                 {course.level}
+               </span>
+            </div>
           </div>
-          {copied && <p className="text-[10px] text-green-500 font-bold uppercase mt-1 text-right">Copied!</p>}
+
+          <div className="text-right flex flex-col items-end group">
+            <p className="text-sm font-black uppercase tracking-widest opacity-40 mb-1">Student Join Code</p>
+            <div onClick={handleCopy} className="flex items-center gap-3 cursor-pointer bg-white border-2 border-[#2D2D2D] p-3 px-5 rounded-2xl shadow-[4px_4px_0px_0px_#74C0FC] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all">
+              <p className="text-3xl font-black font-mono text-[#74C0FC] tracking-tighter">{course.course_code || "------"}</p>
+              {copied ? <Check className="h-6 w-6 text-green-500" /> : <Copy className="h-6 w-6 opacity-20 group-hover:opacity-100" />}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="h-10">
-          <TabsTrigger value="assignments" className="flex gap-2"><MessageSquare className="h-4 w-4" /> Assignments ({assignmentCount})</TabsTrigger>
-          <TabsTrigger value="students" className="flex gap-2"><Users className="h-4 w-4" /> Students ({studentCount})</TabsTrigger>
-          <TabsTrigger value="stats" className="flex gap-2"><BarChart className="h-4 w-4" /> Analytics</TabsTrigger>
-          <TabsTrigger value="settings" className="flex gap-2"><Cog className="h-4 w-4" /> Course Settings</TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-10">
+          <TabsList className="bg-gray-200 p-1.5 rounded-2xl h-14 border-2 border-[#2D2D2D] shadow-[4px_4px_0px_0px_#2D2D2D]">
+            <TabsTrigger value="assignments" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <Newspaper className="h-4 w-4" /> Assignments ({assignmentCount})
+            </TabsTrigger>
+            <TabsTrigger value="students" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <Users className="h-4 w-4" /> Students ({studentCount})
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <BarChartBigIcon className="h-4 w-4" /> Analytics
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <Settings className="h-4 w-4" /> Settings
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="assignments">
-          <div className="space-y-6">
+          <TabsContent value="assignments" className="space-y-8">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Course Assignments</h3>
+              <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                <div className="p-1.5 bg-orange-300 border-2 border-[#2D2D2D] rounded-lg shadow-[2px_2px_0px_0px_#2D2D2D]">
+              <Newspaper className="h-6 w-6" />
+            </div> Assignments
+              </h3>
               {assignmentCount > 0 && <CreateAssignmentModal courseId={courseId} level={course.level} onAssignmentCreated={fetchCourseData} />}
             </div>
             {assignmentCount === 0 ? (
-              <Card className="border-dashed bg-gray-50/50 flex flex-col items-center py-12">
-                <p className="text-sm text-gray-500 italic mb-4">No chat assignments created yet.</p>
+              <div className="bg-white border-4 border-dashed border-[#2D2D2D]/10 rounded-[40px] py-16 flex flex-col items-center gap-6">
+                <p className="font-bold opacity-30 italic">No chat assignments created yet.</p>
                 <CreateAssignmentModal courseId={courseId} level={course.level} onAssignmentCreated={fetchCourseData} />
-              </Card>
+              </div>
             ) : <AssignmentsList assignments={assignments} />}
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="students">
-           <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Enrolled Students</h3>
+          <TabsContent value="students" className="space-y-8">
+            <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+               <div className="p-1.5 bg-blue-300 border-2 border-[#2D2D2D] rounded-lg shadow-[2px_2px_0px_0px_#2D2D2D]">
+              <Users className="h-6 w-6 " /> </div> Enrolled Students
+            </h3>
             {studentCount === 0 ? (
-              <Card className="border-dashed bg-gray-50/50">
-                <CardContent className="flex flex-col items-center py-12 text-center">
-                  <p className="text-sm text-gray-500 italic mb-6">No students enrolled yet.</p>
-                  <div className="bg-white border-2 border-black p-6 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <p className="text-xs font-bold uppercase text-gray-400 mb-2">Join Code</p>
-                    <p className="text-4xl font-mono font-bold tracking-widest text-blue-600">{course.course_code}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="bg-white border-4 border-dashed border-[#2D2D2D]/10 rounded-[40px] py-20 flex flex-col items-center text-center">
+                <p className="text-lg font-bold opacity-30 italic mb-8">No students have joined this course yet.</p>
+                <div className="bg-[#F5F5F5] border-2 border-[#2D2D2D] p-6 rounded-3xl shadow-[6px_6px_0px_0px_#2D2D2D]">
+                   <p className="text-[10px] font-black uppercase opacity-40 mb-2">Share Code</p>
+                   <p className="text-4xl font-black font-mono text-[#74C0FC] tracking-widest">{course.course_code}</p>
+                </div>
+              </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-4 md:grid-cols-1">
                 {students.map((student) => (
-                  <Link href={`${courseId}/students/${student.realid}`} key={student.id}>
-                    <div className="flex items-center justify-between p-4 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
+                  <Link href={`/teacher/courses/${courseId}/students/${student.realid}`} key={student.realid}>
+                    <div className="bg-white border-2 border-[#2D2D2D] p-5 rounded-[28px] shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all group flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="bg-blue-100 p-2 rounded-full"><UserCircle className="h-6 w-6 text-blue-600" /></div>
+                        <div className="h-12 w-12 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-2xl flex items-center justify-center shadow-[2px_2px_0px_0px_#2D2D2D]">
+                          <UserCircle className="h-6 w-6 text-[#2D2D2D]" />
+                        </div>
                         <div>
-                          <p className="font-bold text-gray-900">{student.firstname} {student.lastname}</p>
-                          <div className="flex items-center gap-2 text-sm text-gray-500"><Hash className="h-4 w-4" /><span>ID: {student.id}</span></div>
+                          <p className="font-black text-lg uppercase tracking-tight">{student.firstname} {student.lastname}</p>
+                          <p className="text-[10px] font-black uppercase opacity-40">ID: {student.id}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-blue-600 font-bold">View Progress <ChevronRight className="h-4 w-4 ml-1" /></Button>
+                      <ChevronRight className="h-6 w-6 opacity-20 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </Link>
                 ))}
               </div>
             )}
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="stats">
-          <div className="space-y-6">
-            <div className="flex justify-between items-end">
-              <div>
-                <h3 className="text-2xl pb-1 font-bold flex items-center gap-2">
-                  <Scroll className="h-5 w-5 text-green-600" /> Overall Course Performance
+          <TabsContent value="stats" className="space-y-10">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-2 border-[#2D2D2D]/10 pb-8">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                  <div className="h-12 w-12 bg-purple-300 border-2 border-[#2D2D2D] rounded-2xl flex items-center justify-center shadow-[2px_2px_0px_0px_#2D2D2D]">
+                  <BarChartBig className="h-6 w-6" /> </div>Course Analytics
+                  
                 </h3>
-                <p className="text-sm text-gray-500 font-medium">Global insights across all assignments</p>
+                <p className="font-bold opacity-40 text-[10px] uppercase tracking-widest">Global insights across all submissions</p>
               </div>
-
-              <div className="flex flex-col items-end gap-2">
-                {courseAiOverview?.generated_at && (
-                  <span className="text-lg font-semibold text-gray-500 flex items-center gap-1">
-                    <Clock size={14} /> Last generated: {formatGeneratedDate(courseAiOverview.generated_at)}
-                  </span>
-                )}
-                <Button 
-                  onClick={handleGenerateCourseOverview} 
-                  disabled={isGeneratingAi || hasNoData}
-                  className={`
-                    h-15 w-80 text-md border-2 transition-all
-                    ${hasNoData 
-                      ? "!bg-gray-200 !text-gray-400 !border-gray-300 !shadow-none !cursor-not-allowed !pointer-events-none opacity-100" 
-                      : "bg-purple-600 text-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 active:shadow-none"
-                    }
-                  `}
-                >
-                  {isGeneratingAi ? <Loader2 className="animate-spin mr-2" size={16}/> : <Sparkles className="mr-2" size={16}/>}
-                  {hasNoData ? "No Student Data Available" : (courseAiOverview ? "Regenerate Course Overview" : "Generate Course Overview")}
-                </Button>
-              </div>
+              <Button 
+                onClick={handleGenerateCourseOverview} 
+                disabled={isGeneratingAi || totalSubmissions === 0}
+                className="h-14 px-8 bg-[#FFD966] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-2xl font-black shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-50 uppercase tracking-tighter"
+              >
+                {isGeneratingAi ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <Sparkles className="mr-2 h-5 w-5" />}
+                {totalSubmissions === 0 ? "No Student Data" : "Update Course Overview"}
+              </Button>
             </div>
 
             {courseAiOverview ? (
-              <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-2 border-black bg-yellow-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <CardContent className="p-6">
-                    <h3 className="font-bold text-yellow-700 mb-4 flex items-center gap-2"><Sparkles size={18}/> Student Strengths</h3>
-                    <div className="space-y-2">
-                      {courseAiOverview.strengths?.map((item, idx) => (
-                        <div key={idx} className="bg-white/50 border border-yellow-200 p-3 rounded-lg text-sm font-medium">• {item}</div>
-                      ))}
-                    </div>
-                  </CardContent>
+              <div className="grid md:grid-cols-2 gap-8">
+                <Card className="border-2 border-[#2D2D2D] bg-[#FFFAF0] rounded-[32px] shadow-[6px_6px_0px_0px_#FFD966] overflow-hidden">
+                  <div className="p-8 border-b-2 border-[#2D2D2D]/10">
+                    <h3 className="font-black text-xl flex items-center gap-2 uppercase tracking-tight text-[#92400E]">
+                      <Sparkles className="h-5 w-5" /> Student Strengths
+                    </h3>
+                  </div>
+                  <div className="p-8 space-y-3">
+                    {courseAiOverview.strengths?.map((item, idx) => (
+                      <div key={idx} className="bg-white border-2 border-[#2D2D2D] p-4 rounded-2xl font-bold text-sm shadow-[2px_2px_0px_0px_#2D2D2D]">• {item}</div>
+                    ))}
+                  </div>
                 </Card>
-                <Card className="border-2 border-black bg-pink-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <CardContent className="p-6">
-                    <h3 className="font-bold text-pink-700 mb-4 flex items-center gap-2"><TrendingUp size={18}/> Student Areas for Improvement</h3>
-                    <div className="space-y-2">
-                      {courseAiOverview.weaknesses?.map((item, idx) => (
-                        <div key={idx} className="bg-white/50 border border-pink-200 p-3 rounded-lg text-sm font-medium">• {item}</div>
-                      ))}
-                    </div>
-                  </CardContent>
+                <Card className="border-2 border-[#2D2D2D] bg-[#FFF5F5] rounded-[32px] shadow-[6px_6px_0px_0px_#FFADAD] overflow-hidden">
+                  <div className="p-8 border-b-2 border-[#2D2D2D]/10">
+                    <h3 className="font-black text-xl flex items-center gap-2 uppercase tracking-tight text-[#9D174D]">
+                      <TrendingUp className="h-5 w-5" /> Improvement Areas
+                    </h3>
+                  </div>
+                  <div className="p-8 space-y-3">
+                    {courseAiOverview.weaknesses?.map((item, idx) => (
+                      <div key={idx} className="bg-white border-2 border-[#2D2D2D] p-4 rounded-2xl font-bold text-sm shadow-[2px_2px_0px_0px_#2D2D2D]">• {item}</div>
+                    ))}
+                  </div>
                 </Card>
               </div>
             ) : (
-              <Card className="border-dashed py-20 flex flex-col items-center justify-center text-center bg-gray-50/50">
-                <BarChart className="h-12 w-12 text-gray-300 mb-4" />
-                <p className="text-gray-500 font-medium">No course analytics generated yet.</p>
-                <p className="text-xs text-gray-400 max-w-xs mt-1">
-                  {hasNoData ? "Data will appear here once students complete assignments." : "Click the button above to aggregate all student data."}
+              <div className="bg-white border-4 border-dashed border-[#2D2D2D]/10 rounded-[40px] py-20 flex flex-col items-center text-center">
+                <BarChart className="h-12 w-12 text-[#2D2D2D]/10 mb-6" />
+                <p className="text-xl font-bold text-[#2D2D2D]/30 italic max-w-sm">
+                  {totalSubmissions === 0 ? "Insights will appear once students complete assignments." : "Aggregate all student data to see class-wide trends."}
                 </p>
-              </Card>
+              </div>
             )}
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+
+
+          <TabsContent value="settings" className="space-y-8">
+            <div className="grid gap-6">
+              <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                 <div className="p-1.5 bg-gray-300 border-2 border-[#2D2D2D] rounded-lg shadow-[2px_2px_0px_0px_#2D2D2D]"><Settings className="h-6 w-6" /></div> Course Settings
+              </h3>
+
+              <div className="space-y-6">
+                {/* Spanish Specific Toggle */}
+                {course.language === "Spanish" && (
+                  <Card className="bg-white border-2 border-[#2D2D2D] rounded-[28px] shadow-[4px_4px_0px_0px_#2D2D2D]">
+                    <CardContent className="p-6 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-xl flex items-center justify-center">
+                          <Globe className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-md ">Allow region-specific grammar</p>
+                          <p className="text-sm font-semibold opacity-60 ">Forms like 'vos' and 'vosotros' may be used in conversations, depending on the country the LinguaBuddy lives in.</p>
+                        </div>
+                      </div>
+                      <Switch 
+                        className="data-[state=checked]:bg-green-500 border-[#7e7e7e]"
+                        checked={course.use_region_specific !== false} 
+                        onCheckedChange={handleToggleRegionSpecific}
+                        disabled={isUpdatingSettings}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Course Management Actions */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Button variant="outline" className="h-16 border-2 border-[#2D2D2D] rounded-2xl font-black uppercase shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
+                    <Edit3 className="mr-2 h-5 w-5" /> Edit Course Details
+                  </Button>
+                  <Button variant="destructive" className="h-16 bg-red-500 text-white border-2 border-[#2D2D2D] rounded-2xl font-black uppercase shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
+                    <Trash2 className="mr-2 h-5 w-5" /> Delete Course
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

@@ -57,7 +57,7 @@ export default function AssignmentChatPage() {
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       setIsAdded(false);
-      setTooltip({ show: true, word: finalString, x: rect.left + rect.width / 2, y: rect.top + window.scrollY - 105 });
+      setTooltip({ show: true, word: finalString, x: rect.left + rect.width / 2, y: rect.top + window.scrollY - 55 });
     }
   };
 
@@ -231,7 +231,7 @@ export default function AssignmentChatPage() {
         
         {/* Curved Progress Bar */}
         <div className="w-full bg-[#E8E8E8] h-3 mt-4 border-2 border-[#2D2D2D] rounded-full overflow-hidden">
-          <div className="h-full bg-[#74C0FC] transition-all duration-1000 ease-out" style={{ width: `${Math.min(progressValue, 100)}%` }} />
+          <div className="h-full bg-[#06d826] transition-all duration-1000 ease-out" style={{ width: `${Math.min(progressValue, 100)}%` }} />
         </div>
       </header>
 
@@ -289,7 +289,7 @@ export default function AssignmentChatPage() {
               disabled={isFinalizing} 
               className="w-full py-8 bg-[#81E6D9] border-2 border-[#2D2D2D] text-[#2D2D2D] text-xl font-bold rounded-2xl shadow-[6px_6px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all"
             >
-              {isFinalizing ? <Loader2 className="animate-spin h-7 w-7" /> : <><CheckCircle className="mr-3 h-7 w-7" /> Complete Mission</>}
+              {isFinalizing ? <Loader2 className="animate-spin h-7 w-7" /> : <><CheckCircle className="mr-3 h-7 w-7" /> Complete Assignment</>}
             </Button>
           ) : (
             <div className="flex flex-col gap-4">

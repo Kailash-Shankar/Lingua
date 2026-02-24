@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Loader2, ChevronDown, AlertCircle, CheckCircle2 } from "lucide-react"; // Added CheckCircle2
+import { PlusCircle, Loader2, ChevronDown, AlertCircle, Globe } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -35,7 +35,9 @@ export function CreateCourseModal({ onCourseCreated }) {
   
   const [selectedLanguage, setSelectedLanguage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
-  
+  // Default to true (Yes)
+  const [useRegionSpecific, setUseRegionSpecific] = useState(true);
+
   const router = useRouter();
 
   const handleSubmit = async (e) => {
@@ -67,12 +69,12 @@ export function CreateCourseModal({ onCourseCreated }) {
             level: selectedLevel,      
             teacher_id: user.id,
             course_code: courseCode, 
+            use_region_specific: selectedLanguage === "Spanish" ? useRegionSpecific : null
           }
         ]);
 
       if (supabaseError) throw supabaseError;
 
-      // 2. Trigger Sonner Success Toast
       toast.success("Course created successfully!", {
         description: `${title} is now available in your dashboard.`,
         duration: 4000,
@@ -81,11 +83,11 @@ export function CreateCourseModal({ onCourseCreated }) {
       setOpen(false);
       setSelectedLanguage("");
       setSelectedLevel("");
+      setUseRegionSpecific(true);
       if (onCourseCreated) onCourseCreated();
       router.refresh();
     } catch (err) {
       setError(err.message);
-      // 3. Trigger Sonner Error Toast
       toast.error("Failed to create course", {
         description: err.message,
       });
@@ -93,89 +95,143 @@ export function CreateCourseModal({ onCourseCreated }) {
       setLoading(false);
     }
   };
+
   return (
     <Dialog open={open} onOpenChange={(val) => {
       setOpen(val);
-      if (!val) setError(""); // ✅ Clear error when closing modal
+      if (!val) setError(""); 
     }}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-400 text-white font-semibold">
+        <Button variant="outline" className="flex items-center gap-2 bg-[#74C0FC] hover:bg-[#74C0FC] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-xl shadow-[4px_4px_0px_0px_#2D2D2D] active:shadow-none hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all font-black uppercase tracking-tight">
           <PlusCircle className="h-4 w-4" />
           Create New Course
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      
+      <DialogContent className="sm:max-w-[425px] bg-[#FEFAF2] border-4 border-[#2D2D2D] rounded-[32px] shadow-[8px_8px_0px_0px_#2D2D2D]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Create New Course</DialogTitle>
+          <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-[#2D2D2D]">
+            Create New <span className="text-[#FF914D]">Course</span>
+          </DialogTitle>
         </DialogHeader>
 
-        {/* ✅ Error Message Banner */}
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-center gap-2 p-3 text-sm font-bold text-[#2D2D2D] bg-[#FFF5F5] border-2 border-[#2D2D2D] rounded-xl shadow-[3px_3px_0px_0px_#2D2D2D]">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <p>{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-3">
-            <Label htmlFor="title">Course Title</Label>
-            <Input id="title" name="title" placeholder="e.g. IB Spanish 2" />
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-xs font-black uppercase tracking-widest opacity-70 ml-1">Course Title</Label>
+            <Input 
+              id="title" 
+              name="title" 
+              placeholder="e.g. IB Spanish 2" 
+              className="bg-white border-2 border-[#2D2D2D] rounded-xl focus-visible:ring-0 focus-visible:border-[#74C0FC] placeholder:opacity-30 font-bold"
+            />
           </div>
 
-          <div className="space-y-4">
-            {/* --- Language Dropdown --- */}
-            <div className="space-y-3 flex flex-col">
-              <Label>Language</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 flex flex-col">
+              <Label className="text-xs font-black uppercase tracking-widest opacity-70 ml-1">Language</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className={`justify-between bg-white text-black ${!selectedLanguage && error ? "border-red-500" : "border-gray-300"}`}>
-                    {selectedLanguage || "Select language..."}
+                  <Button variant="outline" className={`justify-between bg-white text-[#2D2D2D] border-2 rounded-xl font-bold shadow-[3px_3px_0px_0px_#2D2D2D] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] ${!selectedLanguage && error ? "border-red-500" : "border-[#2D2D2D]"}`}>
+                    {selectedLanguage || "Select..."}
                     <ChevronDown className="h-4 w-4 opacity-50" /> 
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-40">
-                  <DropdownMenuItem onClick={() => setSelectedLanguage("Spanish")}>Spanish</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedLanguage("French")}>French</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedLanguage("German")}>German</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedLanguage("Italian")}>Italian</DropdownMenuItem>
+                <DropdownMenuContent className="w-40 border-2 border-[#2D2D2D] rounded-xl bg-white font-bold shadow-[4px_4px_0px_0px_#2D2D2D]">
+                  {["Spanish", "French"].map((lang) => (
+                    <DropdownMenuItem key={lang} onClick={() => setSelectedLanguage(lang)} className="focus:bg-[#B2F2BB] cursor-pointer">
+                      {lang}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
-            {/* --- Level Dropdown --- */}
-            <div className="space-y-3 flex flex-col">
-              <Label>Course Level</Label>
+            <div className="space-y-2 flex flex-col">
+              <Label className="text-xs font-black uppercase tracking-widest opacity-70 ml-1">Level</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className={`justify-between bg-white text-black ${!selectedLevel && error ? "border-red-500" : "border-gray-300"}`}>
-                    {selectedLevel || "Select level..."}
+                  <Button variant="outline" className={`justify-between bg-white text-[#2D2D2D] border-2 rounded-xl font-bold shadow-[3px_3px_0px_0px_#2D2D2D] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] ${!selectedLevel && error ? "border-red-500" : "border-[#2D2D2D]"}`}>
+                    <span className="truncate">{selectedLevel || "Select..."}</span>
                     <ChevronDown className="h-4 w-4 opacity-50" /> 
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-48">
-                  <DropdownMenuItem onClick={() => setSelectedLevel("Beginner (Year 1)")}>Beginner (Year 1)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedLevel("Intermediate (Year 2)")}>Intermediate (Year 2)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedLevel("Advanced (Year 3+)")}>Advanced (Year 3+)</DropdownMenuItem>
+                <DropdownMenuContent className="w-48 border-2 border-[#2D2D2D] rounded-xl bg-white font-bold shadow-[4px_4px_0px_0px_#2D2D2D]">
+                  {["Beginner (Year 1)", "Intermediate (Year 2)", "Advanced (Year 3+)"].map((lvl) => (
+                    <DropdownMenuItem key={lvl} onClick={() => setSelectedLevel(lvl)} className="focus:bg-[#74C0FC] cursor-pointer">
+                      {lvl}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
+
+          {/* Conditional Spanish Region Selection */}
+          {selectedLanguage === "Spanish" && (
+            <div className="p-4 bg-white border-2 border-[#2D2D2D] rounded-2xl space-y-4 shadow-[4px_4px_0px_0px_#2D2D2D]">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-lg flex items-center justify-center shrink-0">
+                  <Globe className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-bold text-md leading-tight">Enable Region-Specific Grammar</p>
+                  <p className="text-sm font-bold opacity-60 leading-tight mt-1">Allow usage of <em>vos</em> or <em>vosotros</em> based on LinguaBuddy origin.</p>
+                </div>
+              </div>
+              
+              <div className="flex w-full">
+                <button
+                  type="button"
+                  onClick={() => setUseRegionSpecific(true)}
+                  className={`flex-1 h-10 font-black uppercase text-xs border-2 border-[#2D2D2D] rounded-l-xl transition-all ${
+                    useRegionSpecific 
+                    ? "bg-[#B2F2BB] translate-z-0" 
+                    : "bg-white opacity-50 hover:opacity-100"
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseRegionSpecific(false)}
+                  className={`flex-1 h-10 font-black uppercase text-xs border-y-2 border-r-2 border-[#2D2D2D] rounded-r-xl transition-all ${
+                    !useRegionSpecific 
+                    ? "bg-[#FFADAD] translate-z-0" 
+                    : "bg-white opacity-50 hover:opacity-100"
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
+            <Label htmlFor="description" className="text-xs font-black uppercase tracking-widest opacity-70 ml-1">Description (Optional)</Label>
             <Textarea 
               id="description" 
               name="description" 
               placeholder="Add additional course details..." 
+              className="bg-white border-2 border-[#2D2D2D] rounded-xl focus-visible:ring-0 focus-visible:border-[#FF914D] placeholder:opacity-30 font-bold min-h-[80px]"
             />
           </div>
 
           <DialogFooter className="pt-2">
-            <Button type="submit" disabled={loading} className="w-full bg-black text-white hover:bg-gray-800">
+            <Button 
+              type="submit" 
+              disabled={loading} 
+              className="w-full h-14 bg-[#2D2D2D] text-white hover:bg-[#2D2D2D] border-2 border-[#2D2D2D] rounded-xl shadow-[4px_4px_0px_0px_#B2F2BB] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all font-black uppercase tracking-widest text-lg"
+            >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Creating...
                 </>
               ) : (

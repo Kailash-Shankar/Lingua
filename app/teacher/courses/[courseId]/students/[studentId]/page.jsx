@@ -1,398 +1,302 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
 import { 
-  MessageSquare, 
   ArrowLeft, 
-  ChevronRight,
   CheckCircle2,
   Sparkles,
   TrendingUp,
   Zap,
-  Clock,
-  Circle,
-  UserCircle,
-  AlertCircle,
-  CalendarDays,
-  BrainCircuit,
   Loader2,
-  Scroll,
-  BarChart
+  PencilLine,
+  LetterText,
+  Trash2,
+  Plus,
+  Newspaper,
+  BarChartBigIcon,
+  ClipboardCheck,
+  MessageSquare,
+  AlertCircle,
+  Circle
 } from "lucide-react";
 
-export default function TeacherStudentProgressPage() {
+export default function CourseDetailPage() {
   const { studentId, courseId } = useParams();
-  const router = useRouter();
-  const [student, setStudent] = useState(null);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [allStats, setAllStats] = useState([]);
-  
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [aiOverview, setAiOverview] = useState(null);
+  const [allAssignments, setAllAssignments] = useState([]);
+  const [studentSkillsOverview, setStudentSkillsOverview] = useState(null);
+  const [studentVocabList, setStudentVocabList] = useState([]);
+  const [setIsAddingVocab] = useState(false);
 
-  const [feedbackModal, setFeedbackModal] = useState({ 
-    isOpen: false, title: "", items: [], type: "" 
-  });
+  const activeTab = searchParams.get("tab") || "assignments";
 
-  const fetchData = async () => {
+  const handleTabChange = (value) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", value);
+    window.history.replaceState(null, "", `${pathname}?${params.toString()}`);
+  };
+
+  const fetchCourseData = async () => {
     setLoading(true);
     try {
-      const { data: enrollment } = await supabase
-        .from("course_enrollments")
-        .select("*")
-        .eq("student_id", studentId)
-        .eq("course_id", courseId)
-        .single();
-      
-      setStudent(enrollment);
-      if (enrollment?.skill_overview) {
-        setAiOverview(enrollment.skill_overview);
-      }
-
-      const { data: courseData } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("id", courseId)
-        .single();
+      // Fetch Course Info
+      const { data: courseData } = await supabase.from("courses").select("*").eq("id", courseId).single();
       setCourse(courseData);
 
-      const { data: assignments } = await supabase
-        .from("assignments")
+      // Fetch Enrollment (Skills/Vocab)
+      const { data: enrollmentData } = await supabase.from("course_enrollments")
+        .select("*")
+        .eq("course_id", courseId)
+        .eq("student_id", studentId)
+        .single();
+      
+      if (enrollmentData?.skill_overview_student) setStudentSkillsOverview(enrollmentData.skill_overview_student);
+      setStudentVocabList(enrollmentData?.vocab_list || []);
+
+      // Fetch All Course Assignments
+      const { data: assignmentsData } = await supabase.from("assignments")
         .select("*")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false });
 
-      const { data: submissions } = await supabase
-        .from("submissions")
-        .select("*")
-        .eq("student_id", studentId);
+      // Fetch Student Submissions
+      const { data: submissionsData } = await supabase.from("submissions")
+        .select(`*, assignments!inner (title, topic, difficulty)`)
+        .eq("student_id", studentId)
+        .eq("assignments.course_id", courseId);
 
+      // Combine Data
       const now = new Date();
-      const combined = assignments.map(a => {
-        const sub = submissions?.find(s => s.assignment_id === a.id && s.status === 'completed');
-        let statusLabel = "pending";
+      const combined = (assignmentsData || []).map(a => {
+        const sub = submissionsData?.find(s => s.assignment_id === a.id);
+        const isCompleted = sub?.status === 'completed';
+        const isProgress = sub?.status === 'in_progress';
+        
+        let statusLabel = "not_started";
         const dueDate = a.due_at ? new Date(a.due_at) : null;
-        const startDate = a.start_at ? new Date(a.start_at) : null;
-        if (sub) statusLabel = "completed";
-        else if (startDate && now < startDate) statusLabel = "future";
+
+        if (isCompleted) statusLabel = "completed";
         else if (dueDate && now > dueDate) statusLabel = "overdue";
+        else if (isProgress) statusLabel = "in_progress";
+        
         return { ...a, submission: sub || null, statusLabel };
       });
 
-      setAllStats(combined);
-    } catch (err) {
-      console.error("Error:", err);
-    } finally {
-      setLoading(false);
-    }
+      setAllAssignments(combined);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    if (courseId && studentId) fetchData();
-  }, [courseId, studentId]);
+  useEffect(() => { if (courseId && studentId) fetchCourseData(); }, [courseId, studentId]);
 
-  const formatGeneratedDate = (isoString) => {
-    if (!isoString) return "";
-    const date = new Date(isoString);
-    return date.toLocaleString([], { 
-      dateStyle: 'short', 
-      timeStyle: 'short' 
-    });
-  };
+  // CATEGORIZATION LOGIC
+  const completed = allAssignments.filter(a => a.statusLabel === 'completed');
+  const inProgress = allAssignments.filter(a => a.statusLabel === 'in_progress');
+  const overdue = allAssignments.filter(a => a.statusLabel === 'overdue');
+  const notStarted = allAssignments.filter(a => a.statusLabel === 'not_started');
 
-  const handleGenerateSkillOverview = async () => {
-    setIsGeneratingAi(true);
-    try {
-      const allFeedback = allStats
-        .filter(item => item.submission)
-        .map(item => ({
-          title: item.title,
-          strengths: item.submission.pos_feedback,
-          weaknesses: item.submission.neg_feedback
-        }));
+  const renderAssignmentRows = (items) => (
+    <div className="grid gap-4">
+      {items.map((item) => (
+        <Card key={item.id} className="bg-white border-2 border-[#2D2D2D] p-5 rounded-[28px] shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all group flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`h-12 w-12 border-2 border-[#2D2D2D] rounded-2xl flex items-center justify-center shadow-[2px_2px_0px_0px_#2D2D2D] ${
+                item.statusLabel === 'completed' ? 'bg-[#E6F4F1]' : 
+                item.statusLabel === 'overdue' ? 'bg-[#FFF5F5]' : 'bg-white'
+            }`}>
+              {item.statusLabel === 'completed' ? <MessageSquare className="h-6 w-6" /> : <PencilLine className="h-6 w-6 opacity-40" />}
+            </div>
+            <div>
+              <p className="font-black text-lg uppercase tracking-tight">{item.title}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-black uppercase opacity-40">{item.topic || item.difficulty}</p>
+                <span className="h-1 w-1 rounded-full bg-[#2D2D2D]/20"></span>
+                <p className={`text-[10px] font-black uppercase ${
+                    item.statusLabel === 'completed' ? 'text-green-600' : 
+                    item.statusLabel === 'overdue' ? 'text-red-500' : 'text-[#2D2D2D]/40'
+                }`}>
+                  {item.statusLabel.replace('_', ' ')}
+                </p>
+              </div>
+            </div>
+          </div>
+          <Link href={item.statusLabel === 'completed' 
+            ? `/student/${studentId}/chat/${item.id}?submission=${item.submission.id}`
+            : `/student/${studentId}/chat/${item.id}`
+          }>
+            <Button variant="outline" className="border-2 border-[#2D2D2D] rounded-xl font-black uppercase text-[10px] shadow-[2px_2px_0px_0px_#2D2D2D] hover:shadow-none transition-all">
+              {item.statusLabel === 'completed' ? 'View Results' : 'Start Task'}
+            </Button>
+          </Link>
+        </Card>
+      ))}
+    </div>
+  );
 
-      if (allFeedback.length === 0) {
-        alert("No completed assignments to analyze.");
-        return;
-      }
-
-      const response = await fetch("/api/student-overview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feedback: allFeedback })
-      });
-
-      const data = await response.json();
-
-      const overviewWithTimestamp = {
-        ...data,
-        generated_at: new Date().toISOString()
-      };
-
-      setAiOverview(overviewWithTimestamp);
-      
-      const { error } = await supabase
-        .from("course_enrollments")
-        .update({ skill_overview: overviewWithTimestamp })
-        .eq("student_id", studentId)
-        .eq("course_id", courseId);
-
-      if (error) throw error;
-
-    } catch (err) {
-      console.error("AI Error:", err);
-    } finally {
-      setIsGeneratingAi(false);
-    }
-  };
-
-  const openFeedback = (e, type, rawData, title) => {
-    e.preventDefault();
-    let cleanedItems = [];
-    try {
-      if (typeof rawData === 'string' && rawData.startsWith('[')) {
-        cleanedItems = JSON.parse(rawData);
-      } else {
-        cleanedItems = rawData?.split(/[•\n\r]+/).filter(i => i.trim().length > 2) || [];
-      }
-    } catch { cleanedItems = [rawData]; }
-
-    setFeedbackModal({ isOpen: true, title, type, items: cleanedItems });
-  };
-
-  if (loading) return <div className="h-screen flex items-center justify-center animate-pulse text-gray-400">Loading Student Data...</div>;
-
-  const hasNoSubmissions = !allStats || allStats.every(item => !item.submission || item.submission.status !== 'completed');
+  if (loading) return <div className="h-screen flex items-center justify-center bg-[#FEFAF2]"><Loader2 className="animate-spin h-10 w-10 text-[#2D2D2D]" /></div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <Dialog open={feedbackModal.isOpen} onOpenChange={(open) => setFeedbackModal(prev => ({ ...prev, isOpen: open }))}>
-        <DialogContent className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
-              {feedbackModal.type === 'strengths' ? <Sparkles className="text-yellow-600" /> : <TrendingUp className="text-pink-600" />}
-              {feedbackModal.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            {feedbackModal.items.map((item, idx) => (
-              <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-200 font-medium text-gray-700">
-                • {item}
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Button variant="ghost" onClick={() => router.back()} className="mb-6 group">
-        <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1" /> Back to Class List
-      </Button>
-
-      <div className="flex justify-between items-end mb-8 border-b pb-6">
-        <div className="flex items-center gap-4">
-          <div className="bg-blue-600 p-4 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-black">
-            <UserCircle className="h-10 w-10 text-white" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">{student?.First_Name} {student?.Last_Name}</h1>
-            <p className="text-gray-500 text-lg">Student ID: {student?.Student_id || "No ID"} • {course?.title}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-end mb-6">
-        <div>
-          <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
-            <Scroll className="h-5 w-5 text-purple-500" /> Student Skills Overview
-          </h2>
-          <p className="text-sm text-gray-500 font-medium">Aggregated AI insights for this student</p>
-        </div>
-
-        <div className="flex flex-col items-end gap-2">
-          {aiOverview?.generated_at && (
-            <div className="flex items-center gap-1">
-              <Clock size={14} className="text-gray-400"/>
-              <span className="text-lg font-semibold text-gray-500 tracking-tighter">
-                Last generated: {formatGeneratedDate(aiOverview.generated_at)}
-              </span>
-            </div>
-          )}
-          <Button 
-            onClick={handleGenerateSkillOverview}
-            disabled={isGeneratingAi || hasNoSubmissions}
-            className={`
-              h-15 w-80 border-2 font-bold transition-all gap-2
-              ${hasNoSubmissions 
-                ? "!bg-gray-200 !text-gray-400 !border-gray-300 !shadow-none !cursor-not-allowed !pointer-events-none opacity-100" 
-                : "bg-purple-600 hover:bg-purple-700 text-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-              }
-            `}
-          >
-            {isGeneratingAi ? <Loader2 className="h-6 w-6 animate-spin" /> : <Zap className="h-6 w-6" />}
-            <span className="text-lg">
-              {hasNoSubmissions ? "No Assignments Submitted" : (aiOverview ? "Regenerate Overview" : "Generate Skill Overview")}
-            </span>
-          </Button>
-        </div>
-      </div>
-
-      {aiOverview ? (
-        <div className="grid md:grid-cols-2 gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-          <Card className="border-2 border-black bg-yellow-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-yellow-700">
-                <Sparkles className="h-5 w-5" /> Course-Wide Strengths
-              </h3>
-              <div className="space-y-3">
-                {aiOverview.strengths?.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="bg-white/50 border border-yellow-200 p-3 rounded-lg font-medium text-gray-700">
-                    • {item}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black bg-pink-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-pink-700">
-                <TrendingUp className="h-5 w-5" /> Overall Growth Areas
-              </h3>
-              <div className="space-y-3">
-                {aiOverview.weaknesses?.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="bg-white/50 border border-pink-200 p-3 rounded-lg font-medium text-gray-700">
-                    • {item}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <Card className="border-dashed py-20 mb-12 flex flex-col items-center justify-center text-center bg-gray-50/50">
-          <BarChart className="h-12 w-12 text-gray-300 mb-4" />
-          <p className="text-gray-500 font-medium">No skill overview generated yet.</p>
-          <p className="text-xs text-gray-400 max-w-sm mt-1">
-            {hasNoSubmissions 
-              ? "This student hasn't completed any assignments in this course yet." 
-              : "Click the button above to analyze this student's performance across all assignments."}
-          </p>
-        </Card>
-      )}
-
-      <div className="space-y-6">
-        <h3 className="text-xl font-bold flex items-center gap-2">
-          <Clock className="h-5 w-5" /> Assignment Timeline
-          <div className="ml-6 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-600">
-            {allStats.filter(a => a.submission).length} / {allStats.length} Assignments Completed
-          </div>
-        </h3>
+    <div className="min-h-screen bg-[#FEFAF2] p-8 pt-24 text-[#2D2D2D]">
+      <div className="max-w-7xl mx-auto space-y-8">
         
-        <div className="grid gap-6">
-          {allStats.map((item) => (
-            <Card key={item.id} className={`border-2 border-black transition-all ${
-              item.statusLabel === 'completed' 
-                ? 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' 
-                : 'border-dashed bg-gray-50/50 shadow-none'
-            }`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className={`p-3 rounded-full ${
-                      item.statusLabel === 'completed' ? 'bg-green-100 text-green-600' :
-                      item.statusLabel === 'overdue' ? 'bg-red-100 text-red-500' :
-                      item.statusLabel === 'future' ? 'bg-blue-100 text-blue-500' :
-                      'bg-gray-200 text-gray-400'
-                    }`}>
-                      {item.statusLabel === 'completed' ? <CheckCircle2 className="h-6 w-6" /> : 
-                       item.statusLabel === 'overdue' ? <AlertCircle className="h-6 w-6" /> :
-                       item.statusLabel === 'future' ? <CalendarDays className="h-6 w-6" /> :
-                       <Circle className="h-6 w-6" />}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className={`font-bold text-lg leading-none ${item.statusLabel === 'future' ? 'text-gray-400' : ''}`}>
-                        {item.title}
-                      </h4>
-                      <div className="flex gap-2 items-center">
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-bold uppercase text-gray-600">
-                          <Zap className="h-3 w-3" /> {item.difficulty}
-                        </div>
-                        {item.submission ? (
-                            <>
-                            <span className="text-xs text-gray-600 ">
-                            Due at {new Date(item.due_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                          </span>
-                          <span className="text-xs text-green-600 font-semibold">
-                            Completed {new Date(item.submission.submitted_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                          </span>
-                            </>
-                        ) : item.due_at && (
-                          <span className={`text-xs font-medium ${item.statusLabel === 'overdue' ? 'text-red-500' : 'text-gray-500'}`}>
-                            {item.statusLabel === 'overdue' ? 'Missed Deadline: ' : 'Due: '}
-                            {new Date(item.due_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+        {/* Navigation */}
+        <Link href={`/student/${studentId}/dashboard`} className="inline-flex items-center gap-2 font-bold text-[#2D2D2D]/60 hover:text-[#2D2D2D] transition-colors group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-[11px] uppercase tracking-widest font-black">Back to Dashboard</span>
+        </Link>
 
-                  <div className="flex items-center gap-4">
-                    {item.statusLabel === 'completed' ? (
-                      <>
-                        <button 
-                          onClick={(e) => openFeedback(e, 'strengths', item.submission.pos_feedback, "Student Strengths")}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors"
-                        >
-                          <Sparkles className="h-4 w-4 text-yellow-600" />
-                          <span className="text-sm font-bold text-yellow-700">Strengths</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => openFeedback(e, 'improvements', item.submission.neg_feedback, "Areas to Improve")}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-pink-50 border border-pink-200 rounded-lg hover:bg-pink-100 transition-colors"
-                        >
-                          <TrendingUp className="h-4 w-4 text-pink-600" />
-                          <span className="text-sm font-bold text-pink-700">Weaknesses</span>
-                        </button>
-
-                        <Link href={`/teacher/courses/${courseId}/students/${studentId}/results/${item.id}`}>
-                          <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all">
-                            Review Transcript <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </Link>
-                      </>
-                    ) : (  
-                      <span className={`text-sm font-bold uppercase tracking-widest px-4 ${
-                        item.statusLabel === 'overdue' ? 'text-red-500' : 
-                        item.statusLabel === 'future' ? 'text-blue-400' : 
-                        'text-gray-400'
-                      }`}>
-                        {item.statusLabel === 'overdue' ? 'Not Submitted' : 
-                         item.statusLabel === 'future' ? 'Future Assignment' : 
-                         'Pending'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-4 border-[#2D2D2D] pb-8">
+          <div className="space-y-4">
+            <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tighter [text-shadow:3px_3px_0px_#FFD966] leading-none">
+              {course?.title}
+            </h1>
+            <div className="flex items-center gap-3">
+               <span className="px-4 py-1.5 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-full text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_#2D2D2D]">
+                 {course?.language}
+               </span>
+               <span className="px-4 py-1.5 bg-white border-2 border-[#2D2D2D] rounded-full text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_#2D2D2D]">
+                 {course?.level}
+               </span>
+            </div>
+          </div>
         </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-10">
+          <TabsList className="bg-gray-200 p-1.5 rounded-2xl h-14 border-2 border-[#2D2D2D] shadow-[4px_4px_0px_0px_#2D2D2D]">
+            <TabsTrigger value="assignments" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <Newspaper className="h-4 w-4 mr-2" /> Tasks ({allAssignments.length})
+            </TabsTrigger>
+            <TabsTrigger value="results" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <ClipboardCheck className="h-4 w-4 mr-2" /> Results ({completed.length})
+            </TabsTrigger>
+            <TabsTrigger value="vocab" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <LetterText className="h-4 w-4 mr-2" /> Vocab
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="rounded-xl font-bold uppercase text-sm tracking-widest h-full px-6 data-[state=active]:bg-white data-[state=active]:text-[#2D2D2D]">
+              <BarChartBigIcon className="h-4 w-4 mr-2" /> Progress
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Combined Assignments Tab */}
+          <TabsContent value="assignments" className="space-y-12">
+            {overdue.length > 0 && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3 text-red-600">
+                  <AlertCircle className="h-6 w-6" /> Overdue Tasks
+                </h3>
+                {renderAssignmentRows(overdue)}
+              </div>
+            )}
+
+            {(inProgress.length > 0 || notStarted.length > 0) && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
+                  <PencilLine className="h-6 w-6 text-orange-400" /> Active Assignments
+                </h3>
+                {renderAssignmentRows([...inProgress, ...notStarted])}
+              </div>
+            )}
+
+            {allAssignments.length === 0 && (
+              <div className="bg-white border-4 border-dashed border-[#2D2D2D]/10 rounded-[40px] py-16 flex flex-col items-center">
+                <p className="font-bold opacity-30 italic">No tasks assigned yet.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Results Tab */}
+          <TabsContent value="results" className="space-y-12">
+            <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+              <div className="p-1.5 bg-green-300 border-2 border-[#2D2D2D] rounded-lg shadow-[2px_2px_0px_0px_#2D2D2D]">
+                <ClipboardCheck className="h-6 w-6" />
+              </div> Past Results
+            </h3>
+            {completed.length === 0 ? (
+              <div className="bg-white border-4 border-dashed border-[#2D2D2D]/10 rounded-[40px] py-16 flex flex-col items-center">
+                <p className="font-bold opacity-30 italic">No completed assignments yet.</p>
+              </div>
+            ) : renderAssignmentRows(completed)}
+          </TabsContent>
+
+          {/* Vocabulary Tab */}
+          <TabsContent value="vocab" className="space-y-8">
+            <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+              <div className="p-1.5 bg-blue-300 border-2 border-[#2D2D2D] rounded-lg shadow-[2px_2px_0px_0px_#2D2D2D]">
+                <LetterText className="h-6 w-6" />
+              </div> My Vocab List
+            </h3>
+            <Card className="border-2 border-[#2D2D2D] rounded-[32px] shadow-[6px_6px_0px_0px_#2D2D2D] p-8 bg-white min-h-[200px]">
+              <div className="flex flex-wrap gap-3">
+                {studentVocabList.map((word, idx) => (
+                  <div key={idx} className="px-5 py-2.5 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-xl text-[#2D2D2D] font-bold shadow-[3px_3px_0px_0px_#2D2D2D] flex items-center gap-2">
+                    <span className="text-sm uppercase tracking-tight">{word}</span>
+                    <button className="ml-1 text-[#2D2D2D]/30 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+                <button className="flex items-center gap-2 px-5 py-2.5 border-2 border-dashed border-[#2D2D2D]/30 rounded-xl font-bold text-[#2D2D2D]/40 hover:bg-[#F5F5F5] transition-all italic uppercase text-[10px]">
+                  <Plus className="h-4 w-4" /> Add Word
+                </button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* Stats Tab */}
+          <TabsContent value="stats" className="space-y-10">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-2 border-[#2D2D2D]/10 pb-8">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                  <div className="h-12 w-12 bg-purple-300 border-2 border-[#2D2D2D] rounded-2xl flex items-center justify-center shadow-[2px_2px_0px_0px_#2D2D2D]">
+                    <BarChartBigIcon className="h-6 w-6" />
+                  </div> Personal Analytics
+                </h3>
+                <p className="font-bold opacity-40 text-[10px] uppercase tracking-widest">Insights based on your conversations</p>
+              </div>
+              <Button className="h-14 px-8 bg-[#FFD966] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-2xl font-black shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all uppercase tracking-tighter">
+                <Zap className="mr-2 h-5 w-5" /> Refresh My Insights
+              </Button>
+            </div>
+
+            {studentSkillsOverview ? (
+              <div className="grid md:grid-cols-2 gap-8">
+                <Card className="border-2 border-[#2D2D2D] bg-[#FFFAF0] rounded-[32px] shadow-[6px_6px_0px_0px_#FFD966] overflow-hidden">
+                  <div className="p-8 border-b-2 border-[#2D2D2D]/10 font-black text-xl uppercase tracking-tight text-[#92400E] flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" /> My Strengths
+                  </div>
+                  <div className="p-8 space-y-3">
+                    {studentSkillsOverview.strengths?.map((item, idx) => (
+                      <div key={idx} className="bg-white border-2 border-[#2D2D2D] p-4 rounded-2xl font-bold text-sm shadow-[2px_2px_0px_0px_#2D2D2D]">• {item}</div>
+                    ))}
+                  </div>
+                </Card>
+                <Card className="border-2 border-[#2D2D2D] bg-[#FFF5F5] rounded-[32px] shadow-[6px_6px_0px_0px_#FFADAD] overflow-hidden">
+                  <div className="p-8 border-b-2 border-[#2D2D2D]/10 font-black text-xl uppercase tracking-tight text-[#9D174D] flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" /> Improvement Areas
+                  </div>
+                  <div className="p-8 space-y-3">
+                    {studentSkillsOverview.weaknesses?.map((item, idx) => (
+                      <div key={idx} className="bg-white border-2 border-[#2D2D2D] p-4 rounded-2xl font-bold text-sm shadow-[2px_2px_0px_0px_#2D2D2D]">• {item}</div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            ) : (
+              <div className="bg-white border-4 border-dashed border-[#2D2D2D]/10 rounded-[40px] py-20 flex flex-col items-center">
+                 <p className="text-xl font-bold text-[#2D2D2D]/30 italic">No progress data yet.</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

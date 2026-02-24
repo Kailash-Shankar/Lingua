@@ -8,7 +8,8 @@ import {
   MessageSquare, 
   Users, 
   ArrowRight,
-  PlusCircle
+  PlusCircle,
+  Loader2
 } from 'lucide-react';
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -126,7 +127,7 @@ const TeacherDashboard = () => {
 
                 <CardFooter className="pt-0 pb-6 px-6">
                   <Link href={`/teacher/courses/${course.id}`} className="w-full">
-                    <Button className="w-full h-12 bg-[#FFD966] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-2xl font-bold text-lg shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all group">
+                    <Button variant="outline" className="w-full h-12 bg-[#FFD966] hover:bg-[#FFD966] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-2xl font-bold text-lg shadow-[4px_4px_0px_0px_#2D2D2D] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all group">
                       Open Course
                       <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Button>

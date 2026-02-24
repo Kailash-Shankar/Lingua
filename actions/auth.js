@@ -50,7 +50,7 @@ export async function signup(formData) {
         user_role: role,
         first_name: firstName,
         last_name: lastName,
-        student_id: role === "student" ? studentId : null,
+        Student_id: role === "student" ? studentId : null,
       },
     },
   });
