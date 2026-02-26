@@ -92,6 +92,9 @@ const Header = () => {
     };
   }, [router]);
 
+  console.log("Current User State:", user);
+console.log("Loading State:", loading);
+
   return (
     <header className="fixed top-0 w-full border-b-2 border-[#2D2D2D] bg-orange/90 backdrop-blur-md z-50">
       <nav className="container mx-auto px-6 h-20 flex items-center justify-between">

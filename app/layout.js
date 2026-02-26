@@ -47,7 +47,7 @@ export default function RootLayout({ children }) {
        <Toaster position="bottom-right" richColors/>
 
           {/* Footer */}
-          <footer className="bg-muted/50 ">
+          <footer className="bg-muted/50">
             <div className="container mx-auto px-4 h-1 text-xs text-center text-gray-400">
               <p>Made by Kailash Shankar</p>
             </div>

@@ -262,7 +262,7 @@ export default function TeacherAssignmentResultsPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle className="text-2xl font-black uppercase italic">Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription className="font-bold text-gray-700">
-                    This will permanently delete {profile?.first_name}'s results. They will be able to retake the assignment.
+                    This will permanently delete {profile?.first_name}&apos;s results. They will be able to retake the assignment.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="gap-2">

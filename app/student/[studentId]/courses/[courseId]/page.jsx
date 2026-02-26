@@ -225,7 +225,7 @@ export default function CourseDetailPage() {
               <div className="flex flex-wrap gap-3">
                 {studentVocabList.map((word, idx) => (
                   <div key={idx} className="px-5 py-2.5 bg-[#E6F4F1] border-2 border-[#2D2D2D] rounded-xl text-[#2D2D2D] font-bold shadow-[3px_3px_0px_0px_#2D2D2D] flex items-center gap-2">
-                    <span className="text-sm tracking-tight">{word}</span>
+                    <span className="text-sm   tracking-tight">{word}</span>
                     <button className="ml-1 text-[#2D2D2D]/30 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 ))}
