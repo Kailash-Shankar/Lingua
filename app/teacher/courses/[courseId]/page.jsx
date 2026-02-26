@@ -364,7 +364,7 @@ export default function CourseDetailPage() {
                         </div>
                         <div>
                           <p className="font-bold text-md ">Allow region-specific grammar</p>
-                          <p className="text-sm font-semibold opacity-60 ">Forms like 'vos' and 'vosotros' may be used in conversations, depending on the country the LinguaBuddy lives in.</p>
+                          <p className="text-sm font-semibold opacity-60 ">Forms like <em>vos</em> and <em>vosotros</em> may be used in conversations, depending on the country the LinguaBuddy lives in.</p>
                         </div>
                       </div>
                       <Switch 
