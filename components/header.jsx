@@ -58,16 +58,17 @@ const Header = () => {
   // 2. The useEffect now safely references fetchProfileData
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      if (currentUser) {
-        await fetchProfileData(currentUser);
-      }
-      setLoading(false);
-    };
-
+      try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
+    if (currentUser) await fetchProfileData(currentUser);
+  } catch (err) {
+    console.error("Session check failed:", err);
+  } finally {
+    setLoading(false); // always runs no matter what
+  }
+};
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
