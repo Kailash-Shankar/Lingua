@@ -7,6 +7,8 @@ import { LogOut, LayoutDashboard, Languages, UserCircle, Hash, User, ChevronRigh
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
+
+
 const Header = () => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({ firstName: "", lastName: "", studentId: "" });
@@ -56,41 +58,78 @@ const Header = () => {
   };
 
   // 2. The useEffect now safely references fetchProfileData
+
+  const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+useEffect(() => {
+  let timer;
+
+  const resetTimer = () => {
+    if (timer) clearTimeout(timer);
+    
+    // Set a new timer to sign out after 30 mins
+    timer = setTimeout(() => {
+      if (user) {
+        console.log("Inactivity detected. Signing out...");
+        handleSignOut();
+      }
+    }, INACTIVITY_LIMIT);
+  };
+
+  // Only track activity if a user is actually logged in
+  if (user) {
+    // Events that count as "activity"
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    
+    activityEvents.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Start the initial timer
+    resetTimer();
+
+    return () => {
+      // Cleanup: remove listeners and clear timer when component unmounts or user changes
+      if (timer) clearTimeout(timer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }
+}, [user]); // Re-run when user logs in or out
+
+
   useEffect(() => {
     const checkSession = async () => {
       try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const currentUser = session?.user ?? null;
-    setUser(currentUser);
-    if (currentUser) await fetchProfileData(currentUser);
-  } catch (err) {
-    console.error("Session check failed:", err);
-  } finally {
-    setLoading(false); // always runs no matter what
-  }
-};
+        // 1. Log to see if it even starts
+        console.log("Header: Checking session...");
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Supabase Session Error:", error);
+        }
+
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        
+        if (currentUser) {
+          await fetchProfileData(currentUser);
+        }
+      } catch (err) {
+        // This catches network errors or initialization crashes
+        console.error("Critical Header Crash:", err);
+      } finally {
+        // 2. THIS MUST RUN. If it doesn't, buttons never show.
+        console.log("Header: Setting loading to false");
+        setLoading(false);
+      }
+    };
+
     checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) await fetchProfileData(currentUser);
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        router.refresh();
-      }
-    });
-
-    const handleClickOutside = (event) => {
-      if (popupRef.current && !popupRef.current.contains(event.target)) {
-        setShowPopup(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      subscription?.unsubscribe();
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    
+    // ... rest of your auth listener code
   }, [router]);
 
   console.log("Current User State:", user);
@@ -130,7 +169,7 @@ console.log("Loading State:", loading);
                     <button onClick={() => setShowPopup(!showPopup)} className="h-15 w-15 p-2 rounded-xl border-2 border-[#2D2D2D] bg-cyan-200 hover:bg-cyan-200 flex items-center justify-center shadow-[3px_3px_0px_0px_#2D2D2D] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
                       <div className="flex flex-col items-center">
                         <UserCircle className="h-6 w-6 text-[#2D2D2D]" />
-                        <span className="text-[10px] font-black uppercase">Profile</span>
+                        <span className="text-[10px] font-black uppercase">Account</span>
                       </div>
                     </button>
 
