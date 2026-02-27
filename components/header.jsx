@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { LogOut, LayoutDashboard, Languages, UserCircle, Hash, User, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -52,34 +52,31 @@ const Header = () => {
     }
   };
 
-  const handleSignOut = async () => { 
+  const handleSignOut = useCallback(async () => {
   try {
     console.log("Sign out triggered...");
     
-    // 1. Force state to null FIRST so the UI flips immediately regardless of the server
+    // 1. Wipe local state immediately
     setUser(null);
     setProfile({ firstName: "", lastName: "", studentId: "" });
     setShowInactivityPopup(false);
+    setShowPopup(false);
 
-    // 2. Sign out with 'global' scope to ensure cookies are cleared everywhere
+    // 2. Kill the session
     const { error } = await supabase.auth.signOut({ scope: 'global' });
     
     if (error) {
       console.error("Supabase signout error:", error);
     }
 
-    // 3. Clear Next.js cache and go home
+    // 3. Navigate and refresh
     router.push("/login");
     router.refresh();
-
-    // 4. THE NUCLEAR OPTION: If you are still seeing the user in logs, 
-    // it means the cookie is stuck. This will kill it:
-    // window.location.href = "/login"; 
 
   } catch (err) {
     console.error("Critical sign out crash:", err);
   }
-};
+}, [router]);
   // 2. The useEffect now safely references fetchProfileData
 
  

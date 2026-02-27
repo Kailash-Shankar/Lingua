@@ -89,15 +89,16 @@ export default function Home() {
           <h2 className="text-4xl md:text-6xl font-black uppercase mb-12 tracking-tighter text-center">Questions?</h2>
           <Accordion type="single" collapsible className="space-y-4">
             <AccordionItem value="item-1" className="border-4 border-[#2D2D2D] bg-white px-6 shadow-[6px_6px_0px_0px_#2D2D2D]">
-              <AccordionTrigger className="text-xl font-black uppercase hover:no-underline">Is it better than a human teacher?</AccordionTrigger>
+              <AccordionTrigger className="text-xl font-black uppercase hover:no-underline">How can Lingua be integrated with classroom instruction?</AccordionTrigger>
               <AccordionContent className="font-bold text-lg pb-6">
-                Lingua doesn't replace teachers; it augments them. It provides the 24/7 practice environment that humans can't provide.
+                In many ways - teachers can assign specific conversations for students to complete based topics covered in class, so the student can get more exposure to and be conversational with the topic. 
+                The teacher can also track student progress and identify common areas of struggle across all students, to focus extra time on in class.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="item-2" className="border-4 border-[#2D2D2D] bg-white px-6 shadow-[6px_6px_0px_0px_#2D2D2D]">
               <AccordionTrigger className="text-xl font-black uppercase hover:no-underline">Which languages are supported?</AccordionTrigger>
               <AccordionContent className="font-bold text-lg pb-6">
-                Everything from Spanish and French to Mandarin and Japanese. Our AI models are trained on global datasets.
+                Currently, Spanish and French are available, with more languages planned for the future.
               </AccordionContent>
             </AccordionItem>
           </Accordion>
