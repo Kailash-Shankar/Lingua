@@ -102,34 +102,57 @@ useEffect(() => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // 1. Log to see if it even starts
-        console.log("Header: Checking session...");
-        
         const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("Supabase Session Error:", error);
-        }
+        if (error) console.error("Supabase Session Error:", error);
 
         const currentUser = session?.user ?? null;
         setUser(currentUser);
-        
-        if (currentUser) {
-          await fetchProfileData(currentUser);
-        }
+        if (currentUser) await fetchProfileData(currentUser);
       } catch (err) {
-        // This catches network errors or initialization crashes
         console.error("Critical Header Crash:", err);
       } finally {
-        // 2. THIS MUST RUN. If it doesn't, buttons never show.
-        console.log("Header: Setting loading to false");
         setLoading(false);
       }
     };
 
     checkSession();
-    
-    // ... rest of your auth listener code
+
+    // --- ADD THIS START ---
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth Event:", event);
+      const currentUser = session?.user ?? null;
+      
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // This ensures the name appears in the header as soon as they log in
+        await fetchProfileData(currentUser);
+      }
+
+      if (event === 'SIGNED_IN') {
+        // Clears the Next.js cache so the Dashboard route becomes accessible
+        router.refresh(); 
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        setProfile({ firstName: "", lastName: "", studentId: "" });
+        router.refresh();
+      }
+    });
+    // --- ADD THIS END ---
+
+    const handleClickOutside = (event) => {
+      if (popupRef.current && !popupRef.current.contains(event.target)) {
+        setShowPopup(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      // Don't forget to unsubscribe to avoid memory leaks!
+      subscription?.unsubscribe();
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [router]);
 
   console.log("Current User State:", user);
@@ -202,12 +225,12 @@ console.log("Loading State:", loading);
               ) : (
                 <div className="flex gap-3">
                   <Link href="/login">
-                    <Button variant="outline" className="rounded-2xl border-2 border-[#2D2D2D] bg-gray-300 font-bold shadow-[4px_4px_0px_0px_#2D2D2D] px-6">
+                    <Button variant="outline" className="rounded-2xl border-2 border-[#2D2D2D] bg-gray-300 font-bold shadow-[4px_4px_0px_0px_#2D2D2D] px-6 hover:bg-gray-300 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
                       Log In
                     </Button>
                   </Link>
                   <Link href="/signup">
-                    <Button variant="outline" className="rounded-2xl border-2 border-[#2D2D2D] bg-blue-400 font-bold shadow-[4px_4px_0px_0px_#2D2D2D] px-6">
+                    <Button variant="outline" className="rounded-2xl border-2 border-[#2D2D2D] bg-blue-400 hover:bg-blue-400 font-bold shadow-[4px_4px_0px_0px_#2D2D2D] px-6 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
                       Sign Up
                     </Button>
                   </Link>
