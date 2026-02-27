@@ -4,11 +4,13 @@ import { Suspense } from "react";
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#FEFAF2] p-4 text-[#2D2D2D]">
       {/* Container for Loginbox to ensure shadow spacing */}
       <div className="w-full max-w-md">
+         <Suspense fallback={<div>Loading...</div>}>
         <Loginbox isSignup={false} />
+         </Suspense>
       </div>
 
       <p className="mt-8 text-xs font-black uppercase tracking-widest">
@@ -22,6 +24,6 @@ export default function LoginPage() {
       </p>
     </div>
 
-    </Suspense>
+  
   );
 }
