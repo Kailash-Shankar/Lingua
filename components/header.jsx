@@ -31,22 +31,30 @@ const Header = () => {
 
   // 4. CALLBACKS
   const handleSignOut = useCallback(async () => {
-    try {
-      console.log("Sign out triggered...");
-      setUser(null);
-      setProfile({ firstName: "", lastName: "", studentId: "" });
-      setShowInactivityPopup(false);
-      setShowPopup(false);
+  try {
+    console.log("Sign out triggered...");
+    
+    // 1. Clear local state and popups first
+    setShowInactivityPopup(false);
+    setShowPopup(false);
+    setUser(null);
+    setProfile({ firstName: "", lastName: "", studentId: "" });
 
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) console.error("Supabase signout error:", error);
+    // 2. Clear the Supabase session
+    // We use 'global' to ensure all tabs are signed out
+    await supabase.auth.signOut({ scope: 'global' });
 
-      router.push("/login");
-      router.refresh();
-    } catch (err) {
-      console.error("Critical sign out crash:", err);
-    }
-  }, [router]);
+    // 3. Definitive Redirect
+    // window.location.href is better for sign-outs than router.push
+    // because it guarantees the middleware/auth guards re-run correctly.
+    window.location.href = "/login";
+
+  } catch (err) {
+    console.error("Critical sign out crash:", err);
+    // Emergency fallback if everything fails
+    window.location.href = "/login";
+  }
+}, []); // Empty dependency array as router is stable
 
   // 5. HELPER FUNCTIONS
   const fetchProfileData = async (currentUser) => {
@@ -186,11 +194,11 @@ useEffect(() => {
   const currentUser = session?.user ?? null;
 
   if (event === 'SIGNED_OUT' || !currentUser) {
-    setUser(null);
-    setProfile({ firstName: "", lastName: "" });
-    router.refresh();
-    return; // Exit early
-  }
+  setUser(null);
+  setProfile({ firstName: "", lastName: "" });
+  // router.refresh(); <--- REMOVE OR COMMENT THIS LINE
+  return;
+}
 
   // Handle Sign In or Token Refresh
   setUser(currentUser);
