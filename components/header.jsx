@@ -96,44 +96,71 @@ useEffect(() => {
 // 3. Update the inactivity useEffect
 useEffect(() => {
   let warningTimer;
+  // Track the exact timestamp of last activity
+  const lastActivityRef = useRef(Date.now());
+
+  const checkInactivity = () => {
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastActivityRef.current;
+
+    // IF WAKING UP AFTER THE LIMIT: Kick out immediately
+    if (timeSinceLastActivity >= INACTIVITY_LIMIT + GRACE_PERIOD) {
+      console.log("Mobile/Background: Limit reached. Kicking out...");
+      if (signOutRef.current) signOutRef.current();
+      return;
+    }
+
+    // IF WAKING UP IN THE GRACE PERIOD: Show popup and set the remaining logout timer
+    if (timeSinceLastActivity >= INACTIVITY_LIMIT) {
+      setShowInactivityPopup(true);
+      const remainingGrace = (INACTIVITY_LIMIT + GRACE_PERIOD) - timeSinceLastActivity;
+      
+      if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+      logoutTimerRef.current = setTimeout(async () => {
+        if (signOutRef.current) await signOutRef.current();
+      }, Math.max(0, remainingGrace));
+    }
+  };
 
   const resetTimer = () => {
+    lastActivityRef.current = Date.now(); // Update timestamp
     if (warningTimer) clearTimeout(warningTimer);
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
     
     warningTimer = setTimeout(() => {
-      // Check if user exists using a ref or the current state
       if (user) {
         setShowInactivityPopup(true);
-        
-        // Timer B: Use the REF to call the function
         logoutTimerRef.current = setTimeout(async () => {
-          console.log("Grace period EXPIRED. Kicking user out now...");
-          // We call the version stored in the ref to avoid stale closures
-          if (signOutRef.current) {
-            await signOutRef.current();
-          }
+          if (signOutRef.current) await signOutRef.current();
         }, GRACE_PERIOD);
       }
     }, INACTIVITY_LIMIT);
   };
 
+  // Handle when the tab becomes visible (Mobile wake-up)
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && user) {
+      checkInactivity();
+    }
+  };
+
   if (user && !showInactivityPopup) {
     const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
     activityEvents.forEach(event => window.addEventListener(event, resetTimer));
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
     resetTimer();
 
     return () => {
       if (warningTimer) clearTimeout(warningTimer);
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       activityEvents.forEach(event => window.removeEventListener(event, resetTimer));
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }
-  // Remove showInactivityPopup from dependencies to prevent the timer from 
-  // destroying itself when the popup opens!
-}, [user]);
+}, [user, INACTIVITY_LIMIT, GRACE_PERIOD]);
 
-// 3. Update your "I'm Still Here" button to clear that Ref
+
 const staySignedIn = () => {
   if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
   setShowInactivityPopup(false);
@@ -160,34 +187,26 @@ const staySignedIn = () => {
 
     // --- ADD THIS START ---
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth Event:", event);
+  console.log("Auth Event:", event);
+  
+  const currentUser = session?.user ?? null;
 
-      if (event === 'SIGNED_OUT') {
+  if (event === 'SIGNED_OUT' || !currentUser) {
     setUser(null);
-    setProfile({ firstName: "", lastName: "", studentId: "" });
+    setProfile({ firstName: "", lastName: "" });
     router.refresh();
+    return; // Exit early
   }
 
-      const currentUser = session?.user ?? null;
-      
-      setUser(currentUser);
-      
-      if (currentUser) {
-        // This ensures the name appears in the header as soon as they log in
-        await fetchProfileData(currentUser);
-      }
+  // Handle Sign In or Token Refresh
+  setUser(currentUser);
+  await fetchProfileData(currentUser);
 
-      if (event === 'SIGNED_IN') {
-        // Clears the Next.js cache so the Dashboard route becomes accessible
-        router.refresh(); 
-      }
-      
-      if (event === 'SIGNED_OUT') {
-        setProfile({ firstName: "", lastName: "", studentId: "" });
-        router.refresh();
-      }
-    });
-    // --- ADD THIS END ---
+  if (event === 'SIGNED_IN') {
+    router.refresh(); 
+  }
+});
+  
 
     const handleClickOutside = (event) => {
       if (popupRef.current && !popupRef.current.contains(event.target)) {
@@ -319,14 +338,11 @@ console.log("Loading State:", loading);
       <div className="flex flex-col gap-3">
         {/* BUTTON: STAY SIGNED IN */}
         <Button 
-          onClick={() => {
-            console.log("User clicked 'Stay Signed In'");
-            setShowInactivityPopup(false); 
-          }}
-          className="w-full h-12 bg-[#74C0FC] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-xl font-black uppercase shadow-[4px_4px_0px_0px_#2D2D2D] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
-        >
-          I&apos;m Still Here
-        </Button>
+  onClick={staySignedIn}
+  className="w-full h-12 bg-[#74C0FC] text-[#2D2D2D] border-2 border-[#2D2D2D] rounded-xl font-black uppercase shadow-[4px_4px_0px_0px_#2D2D2D] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+>
+  I&apos;m Still Here
+</Button>
         
         {/* BUTTON: SIGN OUT MANUALLY */}
         <button 
