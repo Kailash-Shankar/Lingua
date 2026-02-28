@@ -10,19 +10,47 @@ import { useRouter } from "next/navigation";
 
 
 const Header = () => {
+  const router = useRouter();
+  
+  // 1. ALL STATES
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({ firstName: "", lastName: "", studentId: "" });
   const [loading, setLoading] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
-  const [showInactivityPopup, setShowInactivityPopup] = useState(false); // New state
-  const popupRef = useRef(null);
-  const router = useRouter();
-  
+  const [showInactivityPopup, setShowInactivityPopup] = useState(false);
 
-  // 1. Move the function definition ABOVE the useEffect
+  // 2. ALL REFS (Initialize signOutRef as null first)
+  const popupRef = useRef(null);
+  const logoutTimerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+  const signOutRef = useRef(null); 
+
+  // 3. CONSTANTS
+  const INACTIVITY_LIMIT = 30 * 60 * 1000;
+  const GRACE_PERIOD = 30 * 1000;
+
+  // 4. CALLBACKS
+  const handleSignOut = useCallback(async () => {
+    try {
+      console.log("Sign out triggered...");
+      setUser(null);
+      setProfile({ firstName: "", lastName: "", studentId: "" });
+      setShowInactivityPopup(false);
+      setShowPopup(false);
+
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) console.error("Supabase signout error:", error);
+
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Critical sign out crash:", err);
+    }
+  }, [router]);
+
+  // 5. HELPER FUNCTIONS
   const fetchProfileData = async (currentUser) => {
     if (!currentUser) return;
-    
     const isTeacher = currentUser.user_metadata?.user_role === 'teacher';
     
     if (isTeacher) {
@@ -52,52 +80,22 @@ const Header = () => {
     }
   };
 
-  const handleSignOut = useCallback(async () => {
-  try {
-    console.log("Sign out triggered...");
-    
-    // 1. Wipe local state immediately
-    setUser(null);
-    setProfile({ firstName: "", lastName: "", studentId: "" });
+  const staySignedIn = () => {
+    if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
     setShowInactivityPopup(false);
-    setShowPopup(false);
+    lastActivityRef.current = Date.now(); // Restart the clock
+  };
 
-    // 2. Kill the session
-    const { error } = await supabase.auth.signOut({ scope: 'global' });
-    
-    if (error) {
-      console.error("Supabase signout error:", error);
-    }
-
-    // 3. Navigate and refresh
-    router.push("/login");
-    router.refresh();
-
-  } catch (err) {
-    console.error("Critical sign out crash:", err);
-  }
-}, [router]);
-  // 2. The useEffect now safely references fetchProfileData
-
- 
-const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 mins
-const GRACE_PERIOD = 30 * 1000; // 30 seconds
-const signOutRef = useRef(handleSignOut);
+  // 6. SYNC REFS & EFFECTS
+  useEffect(() => {
+    signOutRef.current = handleSignOut;
+  }, [handleSignOut]);
 
 
-
-const logoutTimerRef = useRef(null);
-
-// 2. Update the inactivity useEffect
-useEffect(() => {
-  signOutRef.current = handleSignOut;
-}, [handleSignOut]);
-
-// 3. Update the inactivity useEffect
 useEffect(() => {
   let warningTimer;
   // Track the exact timestamp of last activity
-  const lastActivityRef = useRef(Date.now());
+  
 
   const checkInactivity = () => {
     const now = Date.now();
@@ -161,10 +159,6 @@ useEffect(() => {
 }, [user, INACTIVITY_LIMIT, GRACE_PERIOD]);
 
 
-const staySignedIn = () => {
-  if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-  setShowInactivityPopup(false);
-};
 
 
   useEffect(() => {
